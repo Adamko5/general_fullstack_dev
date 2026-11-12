@@ -33,7 +33,7 @@ The point of this repo is to practice everything regarding full stack developmen
       - BfF on Next server (Kotlin backend with like 2 endpoints + Next Server BfF that combines the result + frontend)
       - Layered with Express (typescript)
       - Layered with Scala
-4. complicated frontend + backend
+4. complex across stack (frontend + backend)
     - to explore design patterns, standard app features, behaviors...
     - enum of possible topics:
       - slugs
