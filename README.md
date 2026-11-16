@@ -14,6 +14,8 @@ The point of this repo is to practice everything regarding full stack developmen
     - refresh token rotation + revocation
     - passkeys (WebAuthn)
     - resource-level authorization + CSRF protection
+      - OpenFGA based access to S3 resources
+      - this also means, there will be NO DATABASE data and access - the DB is only for auth management, not for the app's logic or resources
 2. **frontend variations**
     - to explore frontend variations so i can try multiple designs
     - default framework is Next.js
