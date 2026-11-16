@@ -1,0 +1,23 @@
+include:
+  - compose.support.yaml
+
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth
+      SPRING_DATASOURCE_USERNAME: auth_app
+      SPRING_DATASOURCE_PASSWORD: auth_dev_password
+      S3_ENDPOINT_URL: http://s3:8333
+      S3_BUCKET: auth-files
+      AWS_ACCESS_KEY_ID: auth_dev
+      AWS_SECRET_ACCESS_KEY: auth_dev_secret
+      AWS_REGION: us-east-1
+      OPENFGA_BASE_URL: http://openfga:8080
+    ports:
+      - "8080:8080"

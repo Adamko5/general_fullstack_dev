@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth_app
+      POSTGRES_PASSWORD: auth_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_app -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  s3:
+    image: chrislusf/seaweedfs:4.53
+    environment:
+      AWS_ACCESS_KEY_ID: auth_dev
+      AWS_SECRET_ACCESS_KEY: auth_dev_secret
+      S3_BUCKET: auth-files
+    ports:
+      - "8333:8333"
+    volumes:
+      - seaweedfs_data:/data
+
+  openfga-migrate:
+    image: openfga/openfga:v1.20.0
+    command: migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://auth_app:auth_dev_password@postgres:5432/openfga?sslmode=disable
+
+  openfga:
+    image: openfga/openfga:v1.20.0
+    command: run
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://auth_app:auth_dev_password@postgres:5432/openfga?sslmode=disable
+      OPENFGA_DATASTORE_MAX_OPEN_CONNS: 100
+      OPENFGA_PLAYGROUND_ENABLED: "true"
+    ports:
+      - "8082:8080"
+      - "8081:8081"
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=openfga:8081"]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres_data:
+  seaweedfs_data:
