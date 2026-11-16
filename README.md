@@ -10,11 +10,11 @@ The point of this repo is to practice everything regarding full stack developmen
 
 # Contents
 
-1. custom auth implementation (JWT tokens: access + refresh)
+1. **custom auth implementation** (JWT tokens: access + refresh)
     - refresh token rotation + revocation
     - passkeys (WebAuthn)
     - resource-level authorization + CSRF protection
-2. frontend variations
+2. **frontend variations**
     - to explore frontend variations so i can try multiple designs
     - default framework is Next.js
       - might use Next server with hardcoded data as an API for the frontend
@@ -23,7 +23,7 @@ The point of this repo is to practice everything regarding full stack developmen
       - immersive design for a visual experience (something like web to present a new apartment complex + select apartments and such)
       - View Transitions for the floor plan
       - streaming UI (React Server Components)
-3. backend variations
+3. **backend variations**
     - to explore backend architectures (default stack is Kotlin + Spring)
     - ways of setting up Spring projects and tools used for stuff (like controller advice or whatever)
     - maybe different languages + frameworks like Express?
