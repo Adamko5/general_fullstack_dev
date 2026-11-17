@@ -1,8 +1,8 @@
 # Auth service
 
-Kotlin and Spring Boot starter for the auth service. The API routes are scaffolded; auth flows are not implemented yet and the controller stubs return `501 Not Implemented`.
+Kotlin and Spring Boot starter for a central Spring Authorization Server and OpenID Connect provider. Password registration and passkey-management controller stubs return `501 Not Implemented`; the OIDC server and authentication flows are not configured yet.
 
-The auth app runs Flyway migrations against the `auth` database during startup. Add subsequent versioned SQL migrations under `src/main/resources/db/migration` (for example, `V2__add_email_verification.sql`). Hibernate schema generation is disabled so Flyway remains the schema owner. OpenFGA continues to initialize its separate database with its own migrator.
+The auth app runs Flyway migrations against the `auth` database during startup. Hibernate schema generation is disabled so Flyway remains the schema owner. V2 adds Spring Authorization Server and Spring Security WebAuthn storage, while preserving the earlier draft tables under `legacy_*` names. OpenFGA continues to initialize its separate database with its own migrator.
 
 ## Run the full stack
 
@@ -35,7 +35,7 @@ The Compose credentials are for local development only.
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI document: `http://localhost:8080/v3/api-docs`
-- Password auth: `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`
-- Passkeys: registration options/response, authentication options/response, list, and delete under `/api/v1/auth/passkeys`
+- Account registration: `POST /api/v1/auth/register`
+- Passkey management: `GET /api/v1/auth/passkeys` and `DELETE /api/v1/auth/passkeys/{credentialId}`
 
-The controller stubs return `501 Not Implemented` when requests reach them; Spring Security may reject state-changing requests that do not include a valid CSRF token. The OpenAPI document describes bearer JWT protection for passkey management, but JWT validation is not wired yet.
+Spring Authorization Server will own OIDC login, authorization, token, and logout protocol flows. Spring Security WebAuthn will provide passkey enrollment and login ceremonies. Their configuration is still on the TODO list. CSRF protection remains enabled.

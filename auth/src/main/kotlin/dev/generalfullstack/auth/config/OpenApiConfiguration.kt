@@ -19,18 +19,18 @@ class OpenApiConfiguration {
     fun authOpenApi(): OpenAPI = OpenAPI()
         .info(
             Info()
-                .title("Auth API")
+                .title("Central Auth and OIDC Provider API")
                 .version("v1")
-                .description("Authentication, session, and passkey endpoints."),
+                .description("Account registration and passkey-management endpoints for the central identity provider."),
         )
         .tags(listOf(Tag().name("Authentication").description("Account and passkey authentication.")))
         .components(
             Components().addSecuritySchemes(
-                "bearerAuth",
+                "authSession",
                 SecurityScheme()
-                    .type(SecurityScheme.Type.HTTP)
-                    .scheme("bearer")
-                    .bearerFormat("JWT"),
+                    .type(SecurityScheme.Type.APIKEY)
+                    .`in`(SecurityScheme.In.COOKIE)
+                    .name("JSESSIONID"),
             ),
         )
 
@@ -45,7 +45,7 @@ class OpenApiConfiguration {
             operation.addTagsItem("Authentication")
 
             if (endpoint.authenticated) {
-                operation.addSecurityItem(SecurityRequirement().addList("bearerAuth"))
+                operation.addSecurityItem(SecurityRequirement().addList("authSession"))
             }
 
             val responses = operation.responses ?: ApiResponses()

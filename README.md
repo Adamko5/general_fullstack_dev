@@ -10,9 +10,9 @@ The point of this repo is to practice everything regarding full stack developmen
 
 # Contents
 
-1. **custom auth implementation** (JWT tokens: access + refresh)
-    - refresh token rotation + revocation
-    - passkeys (WebAuthn)
+1. **central auth service** (Spring Authorization Server + OpenID Connect)
+    - single sign-on for future apps using Authorization Code + PKCE
+    - password and passkey (WebAuthn) login options
     - resource-level authorization + CSRF protection
       - OpenFGA based access to S3 resources
       - this also means, there will be NO DATABASE data and access - the DB is only for auth management, not for the app's logic or resources
