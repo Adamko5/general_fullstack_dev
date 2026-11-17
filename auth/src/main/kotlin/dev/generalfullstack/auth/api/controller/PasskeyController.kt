@@ -22,6 +22,7 @@ class PasskeyController(
         summary = "List registered passkeys",
         description = "Lists passkeys registered to the authenticated user.",
         authenticated = true,
+        notImplemented = true,
     )
     fun listCredentials(authentication: Authentication) {
         passkeyService.listCredentials(authentication.name)
@@ -33,6 +34,7 @@ class PasskeyController(
         summary = "Remove a passkey",
         description = "Removes one of the authenticated user's registered passkeys.",
         authenticated = true,
+        notImplemented = true,
     )
     fun deleteCredential(
         authentication: Authentication,

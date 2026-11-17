@@ -54,7 +54,9 @@ class OpenApiConfiguration {
             responses.addApiResponse("401", ApiResponse().description("Authentication is required."))
             responses.addApiResponse("403", ApiResponse().description("The request is forbidden."))
             responses.addApiResponse("500", ApiResponse().description("An unexpected error occurred."))
-            responses.addApiResponse("501", ApiResponse().description("The endpoint is scaffolded but not implemented yet."))
+            if (endpoint.notImplemented) {
+                responses.addApiResponse("501", ApiResponse().description("The endpoint is scaffolded but not implemented yet."))
+            }
             operation.responses = responses
         }
         operation

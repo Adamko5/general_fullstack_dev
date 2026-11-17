@@ -6,4 +6,5 @@ annotation class AuthApiOperation(
     val summary: String,
     val description: String = "",
     val authenticated: Boolean = false,
+    val notImplemented: Boolean = false,
 )

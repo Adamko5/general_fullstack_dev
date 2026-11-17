@@ -1,6 +1,6 @@
 # Auth service
 
-Kotlin and Spring Boot scaffold for a central Spring Authorization Server and OpenID Connect provider. OIDC endpoints and a local PKCE client are configured. Database-backed account authentication and WebAuthn are still TODOs; the account registration and passkey-management controller stubs return `501 Not Implemented`.
+Kotlin and Spring Boot service for a central Spring Authorization Server and OpenID Connect provider. Account registration and email/password login use the `users` table. Passkey management endpoints remain scaffolded and return `501 Not Implemented` until WebAuthn is configured.
 
 The auth app runs Flyway migrations against the `auth` database during startup. Hibernate schema generation is disabled so Flyway remains the schema owner. V2 adds Spring Authorization Server and Spring Security WebAuthn storage, while preserving the earlier draft tables under `legacy_*` names. OpenFGA continues to initialize its separate database with its own migrator.
 
@@ -47,4 +47,4 @@ The Compose credentials are for local development only. Override the local S3 cr
 - Account registration: `POST /api/v1/auth/register`
 - Passkey management: `GET /api/v1/auth/passkeys` and `DELETE /api/v1/auth/passkeys/{credentialId}`
 
-The local OIDC client is `local-nextjs`, a public PKCE client with `http://localhost:3000/oidc/callback` as a placeholder redirect URI. Client and authorization storage is in Postgres. The development CORS origin defaults to `http://localhost:3000`. Until Step 3 connects the `users` table, Spring Boot's temporary development user can be used for the login page; its generated password is printed in the startup logs. CSRF protection remains enabled. Passkey login/enrollment is not enabled until Step 4. The frontend's token-storage approach is still open. The RSA private key is local-only and ignored by Git; configure an HTTPS issuer and managed signing keys outside local development.
+Registration stores passwords with Spring Security's delegating password encoder and returns the created user's ID, name, and normalized email. Log in through the Spring Security form at `/login`, entering the account email as the username. The authenticated user's UUID is used as the OIDC subject. CSRF protection remains enabled. Passkey login/enrollment is not enabled until Step 4. The local OIDC client is `local-nextjs`, a public PKCE client with `http://localhost:3000/oidc/callback` as a placeholder redirect URI. Client and authorization storage is in Postgres. The development CORS origin defaults to `http://localhost:3000`. The frontend's token-storage approach is still open. The RSA private key is local-only and ignored by Git; configure an HTTPS issuer and managed signing keys outside local development.

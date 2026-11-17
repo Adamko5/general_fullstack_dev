@@ -1,6 +1,7 @@
 package dev.generalfullstack.auth.api.controller
 
 import dev.generalfullstack.auth.api.dto.RegisterRequest
+import dev.generalfullstack.auth.api.dto.RegisteredUserResponse
 import dev.generalfullstack.auth.api.openapi.AuthApiOperation
 import dev.generalfullstack.auth.service.AuthService
 import jakarta.validation.Valid
@@ -17,16 +18,21 @@ class AuthController(
     private val authService: AuthService,
 ) {
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.NOT_IMPLEMENTED)
+    @ResponseStatus(HttpStatus.CREATED)
     @AuthApiOperation(
         summary = "Register an account",
         description = "Creates a user account using an email address, name, and password.",
     )
-    fun register(@Valid @RequestBody request: RegisterRequest) {
-        authService.register(
+    fun register(@Valid @RequestBody request: RegisterRequest): RegisteredUserResponse {
+        val account = authService.register(
             email = request.email,
             name = request.name,
             password = request.password,
+        )
+        return RegisteredUserResponse(
+            id = account.id,
+            name = account.name,
+            email = account.email,
         )
     }
 }

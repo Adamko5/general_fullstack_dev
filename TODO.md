@@ -13,10 +13,10 @@
     - V2 adds SAS and Spring Security WebAuthn storage and renames the previous draft token/passkey tables as `legacy_*`. Drop those legacy tables later after confirming they contain no data worth keeping.
     - Before issuing real tokens, decide whether SAS's standard JDBC authorization store may retain token values at rest or whether a custom hashed-token persistence service is required; the old `token_hash` table did not do this.
 
-3. Connect account registration and password authentication.
-    - Keep account registration as an application endpoint.
-    - Add a `UserDetailsService` and `PasswordEncoder` backed by the existing `users` table; use Spring Security form login for the OIDC authorization flow.
-    - Make the authenticated user ID the stable OIDC subject; do not add application roles.
+3. [x] Connect account registration and password authentication.
+    - Registration stores a normalized email, name, and encoded password in the existing `users` table.
+    - Spring Security form login authenticates against that table; disabled accounts and accounts without a password hash cannot use password login.
+    - The authenticated user's UUID is the stable OIDC subject; no application roles are added.
 
 4. Add passkeys as an alternative way to authenticate.
     - Configure Spring Security WebAuthn with the real RP ID and allowed browser origins.
