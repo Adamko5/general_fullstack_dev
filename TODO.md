@@ -18,10 +18,11 @@
     - Spring Security form login authenticates against that table; disabled accounts and accounts without a password hash cannot use password login.
     - The authenticated user's UUID is the stable OIDC subject; no application roles are added.
 
-4. Add passkeys as an alternative way to authenticate.
-    - Configure Spring Security WebAuthn with the real RP ID and allowed browser origins.
-    - Use the JDBC credential repositories and V2 tables already scaffolded.
-    - Require an existing login to enroll or manage passkeys; allow a passkey assertion to authenticate before continuing the OIDC authorization flow.
+4. [x] Add passkeys as an alternative way to authenticate.
+    - Enabled Spring Security WebAuthn with local RP ID `localhost` and the auth/frontend development origins; configure the real hostname and origins for deployment.
+    - Use the JDBC credential repositories and V2 tables for passkey user entities and credentials.
+    - Keep enrollment and management authenticated while permitting passkey assertions to establish the session used by the OIDC authorization flow.
+    - Before production, revisit upstream Spring Security issue `#19994`: version 7.1.2 does not compare counter-bearing authenticator assertions against the latest stored signature count, weakening clone detection.
 
 5. Register the first frontend as an OIDC client.
     - Choose the client type and exact redirect/logout URLs.

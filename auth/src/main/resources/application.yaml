@@ -27,3 +27,7 @@ auth:
     signing-key-id: ${AUTH_OIDC_SIGNING_KEY_ID:local-rsa-1}
     private-key-location: ${AUTH_OIDC_PRIVATE_KEY_LOCATION:file:./secrets/jwt-private.pem}
     public-key-location: ${AUTH_OIDC_PUBLIC_KEY_LOCATION:file:./secrets/jwt-public.pem}
+  webauthn:
+    rp-name: ${AUTH_WEBAUTHN_RP_NAME:General Fullstack Dev}
+    rp-id: ${AUTH_WEBAUTHN_RP_ID:localhost}
+    allowed-origins: ${AUTH_WEBAUTHN_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:3000}

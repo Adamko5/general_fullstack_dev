@@ -1,8 +1,10 @@
 package dev.generalfullstack.auth.security
 
 import dev.generalfullstack.auth.repository.UserRepository
+import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.stereotype.Service
 
@@ -18,10 +20,10 @@ class DatabaseUserDetailsService(
         val passwordHash = user.passwordHash
             ?: throw UsernameNotFoundException("Invalid username or password")
 
-        return AuthUserDetails(
-            userId = userId,
-            encodedPassword = passwordHash,
-            enabled = user.disabledAt == null,
-        )
+        return User.withUsername(user.email)
+            .password(passwordHash)
+            .disabled(user.disabledAt != null)
+            .authorities(emptyList<GrantedAuthority>())
+            .build()
     }
 }

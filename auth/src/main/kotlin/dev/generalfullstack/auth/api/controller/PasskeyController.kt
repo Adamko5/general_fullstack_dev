@@ -1,6 +1,7 @@
 package dev.generalfullstack.auth.api.controller
 
 import dev.generalfullstack.auth.api.openapi.AuthApiOperation
+import dev.generalfullstack.auth.api.dto.PasskeyResponse
 import dev.generalfullstack.auth.service.PasskeyService
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -17,24 +18,20 @@ class PasskeyController(
     private val passkeyService: PasskeyService,
 ) {
     @GetMapping
-    @ResponseStatus(HttpStatus.NOT_IMPLEMENTED)
     @AuthApiOperation(
         summary = "List registered passkeys",
         description = "Lists passkeys registered to the authenticated user.",
         authenticated = true,
-        notImplemented = true,
     )
-    fun listCredentials(authentication: Authentication) {
+    fun listCredentials(authentication: Authentication): List<PasskeyResponse> =
         passkeyService.listCredentials(authentication.name)
-    }
 
     @DeleteMapping("/{credentialId}")
-    @ResponseStatus(HttpStatus.NOT_IMPLEMENTED)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     @AuthApiOperation(
         summary = "Remove a passkey",
         description = "Removes one of the authenticated user's registered passkeys.",
         authenticated = true,
-        notImplemented = true,
     )
     fun deleteCredential(
         authentication: Authentication,
