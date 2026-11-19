@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: file-storage-standard
+
+server:
+  port: 8083
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+auth:
+  oidc:
+    issuer-uri: ${AUTH_OIDC_ISSUER:http://localhost:8080}
+    audience: ${AUTH_OIDC_AUDIENCE:file-storage-api}
+
+storage:
+  s3:
+    endpoint: ${S3_ENDPOINT_URL:http://localhost:8333}
+    presigned-url-endpoint: ${S3_PRESIGNED_URL_ENDPOINT:http://localhost:8333}
+    region: ${S3_REGION:us-east-1}
+    bucket: ${S3_BUCKET:image-storage}
+    access-key: ${S3_ACCESS_KEY:auth_dev}
+    secret-key: ${S3_SECRET_KEY:auth_dev_secret}
+    upload-url-lifetime: PT10M
+    download-url-lifetime: PT2M
+
+openfga:
+  api-url: ${OPENFGA_API_URL:http://localhost:8082}
+  store-id: ${OPENFGA_STORE_ID}
+  authorization-model-id: ${OPENFGA_AUTHORIZATION_MODEL_ID}

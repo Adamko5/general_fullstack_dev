@@ -1,0 +1,11 @@
+model
+  schema 1.1
+
+type user
+
+type image
+  relations
+    define owner: [user]
+    define can_complete: owner
+    define can_download_private: owner
+    define can_delete: owner

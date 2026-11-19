@@ -21,12 +21,6 @@ services:
       AUTH_WEBAUTHN_RP_NAME: General Fullstack Dev
       AUTH_WEBAUTHN_RP_ID: localhost
       AUTH_WEBAUTHN_ALLOWED_ORIGINS: http://localhost:8080,http://localhost:3000
-      S3_ENDPOINT_URL: http://s3:8333
-      S3_BUCKET: auth-files
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-auth_dev}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-auth_dev_secret}
-      S3_REGION: ${S3_REGION:-us-east-1}
-      OPENFGA_BASE_URL: http://openfga:8080
     ports:
       - "8080:8080"
     volumes:

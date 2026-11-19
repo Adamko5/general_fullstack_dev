@@ -10,4 +10,5 @@ data class OidcProperties(
     val privateKeyLocation: String,
     val publicKeyLocation: String,
     val clientsConfigLocation: String,
+    val accessTokenAudience: String,
 )

@@ -1,0 +1,41 @@
+package dev.generalfullstack.filestorage.standard.config
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.S3Configuration as AwsS3Configuration
+import software.amazon.awssdk.services.s3.presigner.S3Presigner
+
+@Configuration
+@EnableConfigurationProperties(S3Properties::class)
+class S3Configuration {
+    @Bean
+    fun s3Client(properties: S3Properties): S3Client =
+        S3Client.builder()
+            .endpointOverride(properties.endpoint)
+            .region(Region.of(properties.region))
+            .credentialsProvider(properties.credentialsProvider())
+            .serviceConfiguration(s3ServiceConfiguration())
+            .build()
+
+    @Bean(destroyMethod = "close")
+    fun s3Presigner(properties: S3Properties): S3Presigner =
+        S3Presigner.builder()
+            .endpointOverride(properties.presignedUrlEndpoint)
+            .region(Region.of(properties.region))
+            .credentialsProvider(properties.credentialsProvider())
+            .serviceConfiguration(s3ServiceConfiguration())
+            .build()
+
+    private fun S3Properties.credentialsProvider(): StaticCredentialsProvider =
+        StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
+
+    private fun s3ServiceConfiguration(): AwsS3Configuration =
+        AwsS3Configuration.builder()
+            .pathStyleAccessEnabled(true)
+            .build()
+}

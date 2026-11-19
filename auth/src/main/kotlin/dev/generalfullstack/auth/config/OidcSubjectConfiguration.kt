@@ -15,12 +15,17 @@ class OidcSubjectConfiguration {
     @Bean
     fun stableUserSubjectCustomizer(
         userRepository: UserRepository,
+        properties: OidcProperties,
     ): OAuth2TokenCustomizer<JwtEncodingContext> =
         OAuth2TokenCustomizer { context ->
             val principal = context.getPrincipal<Authentication>()
             val tokenType = context.tokenType.value
             val storedPrincipalName = context.authorization?.principalName ?: (principal?.name ?: "")
             val userId = resolveUserId(storedPrincipalName, userRepository)
+
+            if (tokenType == OAuth2TokenType.ACCESS_TOKEN.value) {
+                context.claims.audience(listOf(properties.accessTokenAudience))
+            }
 
             if (userId != null &&
                 (tokenType == OAuth2TokenType.ACCESS_TOKEN.value || tokenType == OidcParameterNames.ID_TOKEN)
