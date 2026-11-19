@@ -29,7 +29,3 @@
     - [x] Register `test-frontend` from `auth/oidc-clients.local.json` with the root page as its redirect and post-logout URI.
     - [x] Keep tokens in memory in the test app; reloading clears the local signed-in state.
     - [ ] Verify sign-in, callback handling, token validation, refresh, and SSO through the central auth-server session.
-
-6. Add S3 upload and download endpoints.
-    - Validate OIDC access tokens at the API boundary.
-    - Check the user/resource relationship in OpenFGA before each S3 operation.
