@@ -18,15 +18,11 @@ server:
 auth:
   oidc:
     issuer: ${AUTH_OIDC_ISSUER:http://localhost:8080}
-    development-client-id: ${AUTH_OIDC_DEVELOPMENT_CLIENT_ID:local-nextjs}
-    development-client-redirect-uri: ${AUTH_OIDC_DEVELOPMENT_CLIENT_REDIRECT_URI:http://localhost:3000/oidc/callback}
-    development-client-post-logout-redirect-uri: ${AUTH_OIDC_DEVELOPMENT_CLIENT_POST_LOGOUT_REDIRECT_URI:http://localhost:3000/}
-    access-token-ttl: ${AUTH_OIDC_ACCESS_TOKEN_TTL:PT10M}
-    refresh-token-ttl: ${AUTH_OIDC_REFRESH_TOKEN_TTL:P30D}
     allowed-origins: ${AUTH_OIDC_ALLOWED_ORIGINS:http://localhost:3000}
     signing-key-id: ${AUTH_OIDC_SIGNING_KEY_ID:local-rsa-1}
     private-key-location: ${AUTH_OIDC_PRIVATE_KEY_LOCATION:file:./secrets/jwt-private.pem}
     public-key-location: ${AUTH_OIDC_PUBLIC_KEY_LOCATION:file:./secrets/jwt-public.pem}
+    clients-config-location: ${AUTH_OIDC_CLIENTS_CONFIG_LOCATION:file:./oidc-clients.local.json}
   webauthn:
     rp-name: ${AUTH_WEBAUTHN_RP_NAME:General Fullstack Dev}
     rp-id: ${AUTH_WEBAUTHN_RP_ID:localhost}

@@ -25,9 +25,10 @@
     - Before production, revisit upstream Spring Security issue `#19994`: version 7.1.2 does not compare counter-bearing authenticator assertions against the latest stored signature count, weakening clone detection.
 
 5. Register the first frontend as an OIDC client.
-    - Choose the client type and exact redirect/logout URLs.
-    - Decide whether the frontend is a public SPA or a Next.js BFF, and define its token-storage approach.
-    - Verify sign-in, callback handling, token validation, refresh, and SSO through the central auth-server session.
+    - [x] Choose a public browser SPA using Authorization Code + PKCE; Next.js only serves the React page.
+    - [x] Register `test-frontend` from `auth/oidc-clients.local.json` with the root page as its redirect and post-logout URI.
+    - [x] Keep tokens in memory in the test app; reloading clears the local signed-in state.
+    - [ ] Verify sign-in, callback handling, token validation, refresh, and SSO through the central auth-server session.
 
 6. Add S3 upload and download endpoints.
     - Validate OIDC access tokens at the API boundary.

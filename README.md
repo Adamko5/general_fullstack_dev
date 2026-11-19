@@ -19,7 +19,7 @@ The point of this repo is to practice everything regarding full stack developmen
 2. **frontend variations**
     - to explore frontend variations so i can try multiple designs
     - default framework is Next.js
-      - might use Next server with hardcoded data as an API for the frontend
+      - wont use Next.js functionalities except just the next server that actually starts the React app.
     - enum of possible topics:
       - professional, clean, practical SaaS design
       - immersive design for a visual experience (something like web to present a new apartment complex + select apartments and such)

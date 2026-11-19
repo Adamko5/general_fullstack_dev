@@ -17,6 +17,7 @@ services:
       AUTH_OIDC_ALLOWED_ORIGINS: http://localhost:3000
       AUTH_OIDC_PRIVATE_KEY_LOCATION: file:/run/secrets/auth/jwt-private.pem
       AUTH_OIDC_PUBLIC_KEY_LOCATION: file:/run/secrets/auth/jwt-public.pem
+      AUTH_OIDC_CLIENTS_CONFIG_LOCATION: file:/run/config/oidc-clients.local.json
       AUTH_WEBAUTHN_RP_NAME: General Fullstack Dev
       AUTH_WEBAUTHN_RP_ID: localhost
       AUTH_WEBAUTHN_ALLOWED_ORIGINS: http://localhost:8080,http://localhost:3000
@@ -30,3 +31,4 @@ services:
       - "8080:8080"
     volumes:
       - ./secrets:/run/secrets/auth:ro
+      - ./oidc-clients.local.json:/run/config/oidc-clients.local.json:ro

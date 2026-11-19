@@ -1,0 +1,33 @@
+{
+  "clients": [
+    {
+      "clientId": "test-frontend",
+      "clientIdIssuedAt": null,
+      "clientSecret": null,
+      "clientSecretExpiresAt": null,
+      "clientName": "Test frontend",
+      "clientAuthenticationMethods": ["none"],
+      "authorizationGrantTypes": ["authorization_code", "refresh_token"],
+      "redirectUris": ["http://localhost:3000/"],
+      "postLogoutRedirectUris": ["http://localhost:3000/"],
+      "scopes": ["openid"],
+      "clientSettings": {
+        "requireProofKey": true,
+        "requireAuthorizationConsent": false,
+        "jwkSetUrl": null,
+        "tokenEndpointAuthenticationSigningAlgorithm": null,
+        "x509CertificateSubjectDN": null
+      },
+      "tokenSettings": {
+        "authorizationCodeTimeToLive": "PT5M",
+        "accessTokenTimeToLive": "PT10M",
+        "accessTokenFormat": "self-contained",
+        "deviceCodeTimeToLive": "PT5M",
+        "reuseRefreshTokens": false,
+        "refreshTokenTimeToLive": "P30D",
+        "idTokenSignatureAlgorithm": "RS256",
+        "x509CertificateBoundAccessTokens": false
+      }
+    }
+  ]
+}
