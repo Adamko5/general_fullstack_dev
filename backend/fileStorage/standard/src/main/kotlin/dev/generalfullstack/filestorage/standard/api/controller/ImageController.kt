@@ -4,6 +4,7 @@ import dev.generalfullstack.filestorage.standard.api.dto.CompleteImageUploadResp
 import dev.generalfullstack.filestorage.standard.api.dto.CreateImageDownloadResponse
 import dev.generalfullstack.filestorage.standard.api.dto.CreateImageUploadRequest
 import dev.generalfullstack.filestorage.standard.api.dto.CreateImageUploadResponse
+import dev.generalfullstack.filestorage.standard.api.dto.ShareImageRequest
 import dev.generalfullstack.filestorage.standard.service.ImageStorageService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -48,5 +49,25 @@ class ImageController(
         principal: Principal,
     ) {
         imageStorageService.deleteImage(principal.name, imageId)
+    }
+
+    @PostMapping("/{imageId}/viewers")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun shareImage(
+        @PathVariable imageId: UUID,
+        @Valid @RequestBody request: ShareImageRequest,
+        principal: Principal,
+    ) {
+        imageStorageService.grantViewer(principal.name, imageId, request.recipientUserId)
+    }
+
+    @DeleteMapping("/{imageId}/viewers/{recipientUserId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun revokeShare(
+        @PathVariable imageId: UUID,
+        @PathVariable recipientUserId: UUID,
+        principal: Principal,
+    ) {
+        imageStorageService.revokeViewer(principal.name, imageId, recipientUserId)
     }
 }

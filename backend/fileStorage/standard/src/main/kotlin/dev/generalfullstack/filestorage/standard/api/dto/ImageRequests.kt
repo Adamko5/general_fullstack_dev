@@ -19,3 +19,7 @@ enum class ImageVisibility {
     PUBLIC,
     PRIVATE,
 }
+
+data class ShareImageRequest(
+    val recipientUserId: @jakarta.validation.constraints.NotNull java.util.UUID,
+)

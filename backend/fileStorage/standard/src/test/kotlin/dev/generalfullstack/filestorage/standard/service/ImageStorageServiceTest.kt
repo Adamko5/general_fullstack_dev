@@ -235,6 +235,7 @@ class ImageStorageServiceTest {
 
     @Test
     fun `valid image upload is copied to its published key and staging object is removed`() {
+
         val imageId = UUID.randomUUID()
         val bytes = createPng()
         val metadata = mapOf(
@@ -281,6 +282,142 @@ class ImageStorageServiceTest {
         Mockito.verify(s3Client).deleteObject(any(DeleteObjectRequest::class.java))
     }
 
+    // --- Viewer sharing tests ---
+
+    @Test
+    fun `owner can grant viewer access and the viewer tuple is written`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = true)
+        stubOpenFgaWrite()
+
+        service.grantViewer(OWNER_ID, imageId, VIEWER_UUID)
+
+        val writeRequest = ArgumentCaptor.forClass(ClientWriteRequest::class.java)
+        Mockito.verify(openFgaClient).write(writeRequest.capture())
+        assertEquals("user:$VIEWER_ID", writeRequest.value.writes.first().user)
+        assertEquals("viewer", writeRequest.value.writes.first().relation)
+        assertEquals("image:$imageId", writeRequest.value.writes.first().`object`)
+    }
+
+    @Test
+    fun `owner cannot grant viewer access to themselves`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = true)
+
+        val ownerUuid = UUID.fromString(OWNER_ID)
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.grantViewer(OWNER_ID, imageId, ownerUuid)
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.status)
+        Mockito.verify(openFgaClient, Mockito.never()).write(any(ClientWriteRequest::class.java))
+    }
+
+    @Test
+    fun `non-owner cannot grant viewer access`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = false)
+
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.grantViewer(OTHER_USER_ID, imageId, VIEWER_UUID)
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.status)
+        Mockito.verify(openFgaClient, Mockito.never()).write(any(ClientWriteRequest::class.java))
+    }
+
+    @Test
+    fun `owner can revoke viewer access and the viewer tuple is deleted`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = true)
+        stubOpenFgaWrite()
+
+        service.revokeViewer(OWNER_ID, imageId, VIEWER_UUID)
+
+        val writeRequest = ArgumentCaptor.forClass(ClientWriteRequest::class.java)
+        Mockito.verify(openFgaClient).write(writeRequest.capture())
+        assertEquals("user:$VIEWER_ID", writeRequest.value.deletes.first().user)
+        assertEquals("viewer", writeRequest.value.deletes.first().relation)
+        assertEquals("image:$imageId", writeRequest.value.deletes.first().`object`)
+    }
+
+    @Test
+    fun `non-owner cannot revoke viewer access`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = false)
+
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.revokeViewer(OTHER_USER_ID, imageId, VIEWER_UUID)
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.status)
+        Mockito.verify(openFgaClient, Mockito.never()).write(any(ClientWriteRequest::class.java))
+    }
+
+    @Test
+    fun `viewer can download a private image`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = true)
+        stubDownloadUrl("https://s3.example.test/images/$imageId")
+
+        val response = service.createDownload(imageId, VIEWER_ID)
+
+        assertEquals("https://s3.example.test/images/$imageId", response.downloadUrl.toString())
+        val checkRequest = ArgumentCaptor.forClass(ClientCheckRequest::class.java)
+        Mockito.verify(openFgaClient).check(checkRequest.capture())
+        assertEquals("user:$VIEWER_ID", checkRequest.value.user)
+        assertEquals("can_download_private", checkRequest.value.relation)
+    }
+
+    @Test
+    fun `viewer cannot delete an image`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheckByRelation(setOf("can_download_private"))
+
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.deleteImage(VIEWER_ID, imageId)
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.status)
+        Mockito.verify(s3Client, Mockito.never()).deleteObject(any(DeleteObjectRequest::class.java))
+    }
+
+    @Test
+    fun `viewer cannot grant viewer access to others`() {
+        val imageId = UUID.randomUUID()
+        val anotherUser = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheckByRelation(setOf("can_download_private"))
+
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.grantViewer(VIEWER_ID, imageId, anotherUser)
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.status)
+        Mockito.verify(openFgaClient, Mockito.never()).write(any(ClientWriteRequest::class.java))
+    }
+
+    @Test
+    fun `after revocation a former viewer cannot get new download URLs`() {
+        val imageId = UUID.randomUUID()
+        stubImageHead(ImageVisibility.PRIVATE)
+        stubOpenFgaCheck(allowed = false)
+
+        val exception = assertThrows(ImageApiException::class.java) {
+            service.createDownload(imageId, VIEWER_ID)
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.status)
+        Mockito.verifyNoInteractions(s3Presigner)
+    }
+
     private fun stubImageHead(visibility: ImageVisibility) {
         Mockito.`when`(s3Client.headObject(any(HeadObjectRequest::class.java))).thenReturn(
             HeadObjectResponse.builder()
@@ -295,6 +432,16 @@ class ImageStorageServiceTest {
         Mockito.`when`(response.allowed).thenReturn(allowed)
         Mockito.`when`(openFgaClient.check(any(ClientCheckRequest::class.java)))
             .thenReturn(CompletableFuture.completedFuture(response))
+    }
+
+    private fun stubOpenFgaCheckByRelation(allowedRelations: Set<String>) {
+        Mockito.`when`(openFgaClient.check(any(ClientCheckRequest::class.java)))
+            .thenAnswer { invocation ->
+                val request = invocation.getArgument<ClientCheckRequest>(0)
+                val response = Mockito.mock(ClientCheckResponse::class.java)
+                Mockito.`when`(response.allowed).thenReturn(request.relation in allowedRelations)
+                CompletableFuture.completedFuture(response)
+            }
     }
 
     private fun stubOpenFgaWrite() {
@@ -322,5 +469,7 @@ class ImageStorageServiceTest {
     private companion object {
         const val OWNER_ID = "11111111-1111-4111-8111-111111111111"
         const val OTHER_USER_ID = "22222222-2222-4222-8222-222222222222"
+        const val VIEWER_ID = "33333333-3333-4333-8333-333333333333"
+        val VIEWER_UUID: UUID = UUID.fromString(VIEWER_ID)
     }
 }

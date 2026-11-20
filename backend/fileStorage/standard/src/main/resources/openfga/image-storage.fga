@@ -6,6 +6,7 @@ type user
 type image
   relations
     define owner: [user]
+    define viewer: [user]
     define can_complete: owner
-    define can_download_private: owner
+    define can_download_private: owner or viewer
     define can_delete: owner

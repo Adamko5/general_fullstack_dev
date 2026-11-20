@@ -166,6 +166,33 @@ class ImageStorageService(
         deleteOwner(imageId, ownerId)
     }
 
+    fun grantViewer(
+        ownerId: String,
+        imageId: UUID,
+        recipientUserId: UUID,
+    ) {
+        headObject(imageKey(imageId))
+        requireRelation(ownerId, imageId, "can_delete")
+
+        val recipientId = recipientUserId.toString()
+        if (recipientId == ownerId) {
+            throw ImageApiException(HttpStatus.BAD_REQUEST, "The owner already has access to this image.")
+        }
+
+        writeViewer(imageId, recipientId)
+    }
+
+    fun revokeViewer(
+        ownerId: String,
+        imageId: UUID,
+        recipientUserId: UUID,
+    ) {
+        headObject(imageKey(imageId))
+        requireRelation(ownerId, imageId, "can_delete")
+
+        deleteViewer(imageId, recipientUserId.toString())
+    }
+
     private fun validateUploadRequest(request: CreateImageUploadRequest) {
         if (request.sizeBytes !in 1..MAX_IMAGE_SIZE_BYTES) {
             throw ImageApiException(HttpStatus.BAD_REQUEST, "Image size must be between 1 byte and 5 MiB.")
@@ -245,6 +272,28 @@ class ImageStorageService(
         val tuple = ClientTupleKeyWithoutCondition()
             .user(userObject(ownerId))
             .relation("owner")
+            ._object(imageObject(imageId))
+
+        openFgaCall {
+            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple))).get()
+        }
+    }
+
+    private fun writeViewer(imageId: UUID, viewerId: String) {
+        val tuple = ClientTupleKey()
+            .user(userObject(viewerId))
+            .relation("viewer")
+            ._object(imageObject(imageId))
+
+        openFgaCall {
+            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple))).get()
+        }
+    }
+
+    private fun deleteViewer(imageId: UUID, viewerId: String) {
+        val tuple = ClientTupleKeyWithoutCondition()
+            .user(userObject(viewerId))
+            .relation("viewer")
             ._object(imageObject(imageId))
 
         openFgaCall {
