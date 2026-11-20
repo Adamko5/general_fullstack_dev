@@ -10,11 +10,11 @@ The point of this repo is to practice everything regarding full stack developmen
 
 # Contents
 
-1. **central auth service** (Spring Authorization Server + OpenID Connect)
+1. **central auth service** (**Spring Authorization Server + OpenID Connect**)
     - single sign-on for future apps using Authorization Code + PKCE
-    - password and passkey (WebAuthn) login options
-    - resource-level authorization + CSRF protection
-      - OpenFGA based access to S3 resources
+    - password and passkey (**WebAuthn**) login options
+    - **resource-level authorization** + CSRF protection
+      - **OpenFGA** based access to **S3 resources**
       - this also means, there will be NO DATABASE data and access - the DB is only for auth management, not for the app's logic or resources
 2. **frontend variations**
     - to explore frontend variations so i can try multiple designs
