@@ -10,4 +10,4 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Start the auth service first with Docker Compose from `auth/`. Create an account through `http://localhost:8080/swagger-ui/index.html`, then sign in from the test page. Tokens are kept in memory and disappear on reload. The client ID in `.env.local` must match an entry in `auth/oidc-clients.local.json`.
+Open `http://localhost:3000`. Start the auth service first with Docker Compose from `auth/`. Create an account through `http://localhost:8080/swagger-ui/index.html`, then sign in from the test page. Tokens are kept in memory and disappear on reload. The client ID and resource URI in `.env.local` must match the `clientId` and one `allowedResourceUris` entry in `auth/oidc-clients.local.json`.

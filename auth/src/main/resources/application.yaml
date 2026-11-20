@@ -23,7 +23,6 @@ auth:
     private-key-location: ${AUTH_OIDC_PRIVATE_KEY_LOCATION:file:./secrets/jwt-private.pem}
     public-key-location: ${AUTH_OIDC_PUBLIC_KEY_LOCATION:file:./secrets/jwt-public.pem}
     clients-config-location: ${AUTH_OIDC_CLIENTS_CONFIG_LOCATION:file:./oidc-clients.local.json}
-    access-token-audience: ${AUTH_OIDC_ACCESS_TOKEN_AUDIENCE:file-storage-api}
   webauthn:
     rp-name: ${AUTH_WEBAUTHN_RP_NAME:General Fullstack Dev}
     rp-id: ${AUTH_WEBAUTHN_RP_ID:localhost}

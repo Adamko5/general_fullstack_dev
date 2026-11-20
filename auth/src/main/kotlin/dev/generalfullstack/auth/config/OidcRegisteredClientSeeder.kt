@@ -1,10 +1,8 @@
 package dev.generalfullstack.auth.config
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.io.ResourceLoader
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
@@ -24,18 +22,8 @@ class OidcRegisteredClientSeeder {
     fun seedConfiguredOidcClients(
         registeredClientRepository: RegisteredClientRepository,
         passwordEncoder: PasswordEncoder,
-        properties: OidcProperties,
-        resourceLoader: ResourceLoader,
-        objectMapper: ObjectMapper,
+        registry: OidcClientRegistry,
     ): ApplicationRunner = ApplicationRunner {
-        val registry = resourceLoader.getResource(properties.clientsConfigLocation)
-            .inputStream
-            .use { objectMapper.readValue(it, OidcClientRegistry::class.java) }
-
-        require(registry.clients.map { it.clientId }.distinct().size == registry.clients.size) {
-            "OIDC client configuration contains duplicate client IDs"
-        }
-
         registry.clients.forEach { definition ->
             if (registeredClientRepository.findByClientId(definition.clientId) == null) {
                 registeredClientRepository.save(definition.toRegisteredClient(passwordEncoder))

@@ -4,6 +4,7 @@ import dev.generalfullstack.auth.repository.UserRepository
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext
@@ -15,7 +16,7 @@ class OidcSubjectConfiguration {
     @Bean
     fun stableUserSubjectCustomizer(
         userRepository: UserRepository,
-        properties: OidcProperties,
+        resourceIndicatorResolver: OidcResourceIndicatorResolver,
     ): OAuth2TokenCustomizer<JwtEncodingContext> =
         OAuth2TokenCustomizer { context ->
             val principal = context.getPrincipal<Authentication>()
@@ -24,7 +25,17 @@ class OidcSubjectConfiguration {
             val userId = resolveUserId(storedPrincipalName, userRepository)
 
             if (tokenType == OAuth2TokenType.ACCESS_TOKEN.value) {
-                context.claims.audience(listOf(properties.accessTokenAudience))
+                val authorizationRequest = context.authorization
+                    ?.getAttribute<OAuth2AuthorizationRequest>(OAuth2AuthorizationRequest::class.java.name)
+                val resources = authorizationRequest?.let {
+                    resourceIndicatorResolver.requestedResources(
+                        context.registeredClient.clientId,
+                        it.additionalParameters,
+                    )
+                }
+                if (!resources.isNullOrEmpty()) {
+                    context.claims.audience(resources)
+                }
             }
 
             if (userId != null &&

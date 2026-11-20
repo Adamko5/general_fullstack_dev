@@ -1,17 +1,19 @@
 spring:
   application:
     name: file-storage-standard
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH_OIDC_ISSUER:http://localhost:8080}
+          audiences:
+            - ${AUTH_OIDC_AUDIENCE:http://localhost:8083}
 
 server:
   port: 8083
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
-
-auth:
-  oidc:
-    issuer-uri: ${AUTH_OIDC_ISSUER:http://localhost:8080}
-    audience: ${AUTH_OIDC_AUDIENCE:file-storage-api}
 
 storage:
   s3:

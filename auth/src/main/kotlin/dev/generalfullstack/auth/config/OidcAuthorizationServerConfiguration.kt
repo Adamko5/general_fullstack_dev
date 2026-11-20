@@ -1,6 +1,5 @@
 package dev.generalfullstack.auth.config
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.core.JdbcOperations
@@ -13,7 +12,6 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings
 
 @Configuration
-@EnableConfigurationProperties(OidcProperties::class)
 class OidcAuthorizationServerConfiguration {
     @Bean
     fun authorizationServerSettings(properties: OidcProperties): AuthorizationServerSettings =

@@ -7,6 +7,7 @@ function createUserManager() {
   const settings = {
     authority: process.env.NEXT_PUBLIC_AUTH_ISSUER,
     client_id: process.env.NEXT_PUBLIC_AUTH_CLIENT_ID,
+    resource: process.env.NEXT_PUBLIC_AUTH_RESOURCE,
     redirect_uri: process.env.NEXT_PUBLIC_AUTH_REDIRECT_URI,
     post_logout_redirect_uri: process.env.NEXT_PUBLIC_AUTH_POST_LOGOUT_REDIRECT_URI,
   };

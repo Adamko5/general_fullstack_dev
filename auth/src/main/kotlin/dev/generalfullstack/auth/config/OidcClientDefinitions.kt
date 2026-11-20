@@ -18,6 +18,7 @@ data class OidcClientDefinition(
     val redirectUris: Set<String>,
     val postLogoutRedirectUris: Set<String>,
     val scopes: Set<String>,
+    val allowedResourceUris: Set<String>,
     val clientSettings: OidcClientSettings,
     val tokenSettings: OidcTokenSettings,
 )

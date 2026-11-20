@@ -11,6 +11,7 @@
       "redirectUris": ["http://localhost:3000/"],
       "postLogoutRedirectUris": ["http://localhost:3000/"],
       "scopes": ["openid"],
+      "allowedResourceUris": ["http://localhost:8083"],
       "clientSettings": {
         "requireProofKey": true,
         "requireAuthorizationConsent": false,
