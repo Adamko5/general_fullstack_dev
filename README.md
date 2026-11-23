@@ -3,17 +3,27 @@
 ## **Central auth service** (**Spring Authorization Server + OpenID Connect**)
    - **SSO**
      - Authorization Code + PKCE
+     - RSA-signed JWTs and a JWKS endpoint
    - **WebAuthn**
-     - password and passkey login options
+     - Password and passkey login options
+     - Passkey enrollment and removal
    - **Resource-level authorization**
+     - OAuth resource indicators and API-specific JWT audiences
      - **OpenFGA** based access to **S3 resources**
      - CSRF protection
+   - **PostgreSQL**
+     - Flyway migrations and JDBC-backed OAuth and passkey storage
 
 ## Storage service (S3)
 
    - **Spring MVC**
-     - xx
+     - Blocking S3 client
    - **WebFlux** + **Reactor**
+     - Async S3 client
+   - **SeaweedFS** (S3-compatible)
+     - Presigned uploads and downloads
+     - JPEG/PNG validation
+     - **OpenFGA** owner and viewer permissions
 
 # TODO
 
