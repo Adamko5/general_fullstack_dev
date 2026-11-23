@@ -1,21 +1,22 @@
-# Overview
+# Implemented
 
-The point of this repo is to practice everything regarding full stack development.
+## **Central auth service** (**Spring Authorization Server + OpenID Connect**)
+   - **SSO**
+     - Authorization Code + PKCE
+   - **WebAuthn**
+     - password and passkey login options
+   - **Resource-level authorization**
+     - **OpenFGA** based access to **S3 resources**
+     - CSRF protection
 
-# Goals
+## Storage service (S3)
 
-1. Implement auth
-2. Implement many variations of backends to learn cool features of Spring
-3. Implement various designs of the same frontend to learn cool frontend design patterns (generic app with a header, footer and content in between)
+   - **Spring MVC**
+     - xx
+   - **WebFlux** + **Reactor**
 
-# Contents
+# TODO
 
-1. **central auth service** (**Spring Authorization Server + OpenID Connect**)
-    - single sign-on for future apps using Authorization Code + PKCE
-    - password and passkey (**WebAuthn**) login options
-    - **resource-level authorization** + CSRF protection
-      - **OpenFGA** based access to **S3 resources**
-      - this also means, there will be NO DATABASE data and access - the DB is only for auth management, not for the app's logic or resources
 2. **frontend variations**
     - to explore frontend variations so i can try multiple designs
     - default framework is Next.js
