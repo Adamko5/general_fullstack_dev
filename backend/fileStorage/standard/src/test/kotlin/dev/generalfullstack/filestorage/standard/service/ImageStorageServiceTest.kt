@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectResponse
+import software.amazon.awssdk.services.s3.model.S3Exception
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest
@@ -280,6 +281,33 @@ class ImageStorageServiceTest {
         assertEquals("images/$imageId", publishedPut.value.key())
         assertEquals("PRIVATE", publishedPut.value.metadata()["visibility"])
         Mockito.verify(s3Client).deleteObject(any(DeleteObjectRequest::class.java))
+    }
+
+    @Test
+    fun `staging precondition failure returns conflict without publishing or deleting`() {
+        stubOpenFgaCheck(allowed = true)
+        Mockito.`when`(s3Client.headObject(any(HeadObjectRequest::class.java))).thenReturn(
+            HeadObjectResponse.builder()
+                .metadata(mapOf("owner-id" to OWNER_ID, "visibility" to "PRIVATE", "declared-size" to "50"))
+                .contentLength(50)
+                .eTag("\"original\"")
+                .build(),
+        )
+        val conflict = S3Exception.builder().statusCode(412).build()
+        Mockito.`when`(s3Client.getObjectAsBytes(any(GetObjectRequest::class.java))).thenThrow(conflict)
+
+        val error = assertThrows(ImageApiException::class.java) {
+            service.completeUpload(OWNER_ID, UUID.randomUUID())
+        }
+        assertEquals(HttpStatus.CONFLICT, error.status)
+        assertEquals(conflict, error.cause)
+
+        val getRequest = ArgumentCaptor.forClass(GetObjectRequest::class.java)
+        Mockito.verify(s3Client).headObject(any(HeadObjectRequest::class.java))
+        Mockito.verify(s3Client).getObjectAsBytes(getRequest.capture())
+        assertEquals("\"original\"", getRequest.value.ifMatch())
+        assertEquals("bytes=0-50", getRequest.value.range())
+        Mockito.verifyNoMoreInteractions(s3Client)
     }
 
     // --- Viewer sharing tests ---

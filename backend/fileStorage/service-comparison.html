@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>File storage comparison · MVC and WebFlux</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #141718;
+      --card: #1a1e20;
+      --code: #191d1f;
+      --line: #303638;
+      --ink: #f0eeea;
+      --muted: #a8b2b3;
+      --dim: #829193;
+      --mvc: #f0b8a3;
+      --flux: #a1dfca;
+      --mvc-bg: #322728;
+      --flux-bg: #20302c;
+      --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--page); font: 15px/1.5 var(--ui); }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--flux); outline-offset: 3px; }
+    code { font-family: var(--mono); }
+    [hidden] { display: none !important; }
+    .shell { width: min(100% - 80px, 1600px); margin-inline: auto; }
+    .masthead {
+      border-bottom: 1px solid var(--line);
+      background: radial-gradient(ellipse at 85% 0, #22302e 0, transparent 57%), #181b1d;
+    }
+    .masthead .shell { padding-block: 31px 34px; }
+    .path { margin: 0 0 10px; font: 12px/1.5 var(--mono); color: var(--flux); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(32px, 4.4vw, 55px); font-weight: 650; line-height: 1.08; letter-spacing: -.049em; }
+    .intro { margin-top: 11px; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 30px; align-items: start; padding-block: 29px 55px; }
+    .topics { position: sticky; top: 20px; display: grid; gap: 19px; }
+    .topics h2 { color: var(--dim); font-size: 11px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; padding: 0 10px 6px; }
+    .topic-group { display: grid; gap: 3px; }
+    .topic {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      min-height: 36px; padding: 6px 10px; border: 1px solid transparent;
+      border-radius: 7px; color: var(--muted); font-size: 13px;
+    }
+    .topic:hover { background: var(--card); color: var(--ink); }
+    .topic[aria-current="true"] { color: var(--flux); border-color: #3a554b; background: #202c29; }
+    .topic[aria-current="true"]::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+    .full-topic { border-top: 1px solid var(--line); padding-top: 12px; }
+    .section-header { display: flex; align-items: start; justify-content: space-between; gap: 18px; margin-bottom: 15px; }
+    h2 { font-size: 26px; font-weight: 620; letter-spacing: -.033em; line-height: 1.2; }
+    .note { margin-top: 6px; max-width: 65ch; color: var(--muted); font-size: 14px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: end; }
+    .compare-option { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .compare-option input { margin: 0; accent-color: var(--flux); }
+    .switch { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: #171a1c; }
+    .switch button {
+      padding: 5px 10px; border: 0; border-radius: 5px; background: transparent;
+      color: var(--muted); white-space: nowrap; font-size: 12px;
+    }
+    .switch button:hover { color: var(--ink); }
+    .switch button[aria-pressed="true"] { background: #303839; color: var(--ink); }
+    .switch.side-switch { display: none; }
+    .diff { isolation: isolate; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--code); }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pair > :nth-child(2) { border-inline-start: 1px solid var(--line); }
+    .pane-header {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      min-width: 0; padding: 12px 13px; border-bottom: 1px solid var(--line); background: #222729;
+    }
+    .pane-meta { min-width: 0; }
+    .pane-header h3 { font-size: 14px; font-weight: 650; }
+    .pane-header.mvc h3 { color: var(--mvc); }
+    .pane-header.flux h3 { color: var(--flux); }
+    .filename { display: block; margin-top: 2px; color: var(--muted); font: 11px/1.35 var(--mono); overflow-wrap: anywhere; }
+    .filename:hover { text-decoration: underline; }
+    .copy {
+      padding: 5px 9px; border: 1px solid #434c4d; border-radius: 6px; background: transparent;
+      color: var(--muted); font-size: 12px; white-space: nowrap;
+    }
+    .copy:hover { background: #303839; color: var(--ink); }
+    .code-viewport { max-height: clamp(280px, calc(100vh - 425px), 780px); min-height: 100px; overflow: auto; scrollbar-color: #586263 var(--code); }
+    .code-viewport:focus-visible { outline-offset: -3px; }
+    .code-cell {
+      display: grid; grid-template-columns: 4.6ch 2.2ch minmax(0, 1fr); min-width: 0;
+      padding-right: 12px; font: 12px/1.63 var(--mono); font-variant-ligatures: none;
+    }
+    .gutter { color: var(--dim); text-align: right; user-select: none; }
+    .mark { text-align: center; user-select: none; font-weight: 700; }
+    .source-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
+    .code-cell { min-height: 19.56px; }
+    .removed { background: var(--mvc-bg); }
+    .added { background: var(--flux-bg); }
+    .removed .mark { color: var(--mvc); }
+    .added .mark { color: var(--flux); }
+    .empty { background: repeating-linear-gradient(-45deg, #191d1f, #191d1f 5px, #1d2223 5px, #1d2223 6px); }
+    .token-keyword { color: #d4b4ed; }
+    .token-type { color: #a7d4e1; }
+    .token-string { color: #e5c687; }
+    .token-comment { color: #a0afa8; font-style: italic; }
+    .token-number { color: #f1b39e; }
+    .gap-button {
+      display: block; width: 100%; padding: 7px 12px; border: 0; border-block: 1px solid #303738;
+      background: #22292a; color: #c9d5d4; font: 12px/1.4 var(--mono); text-align: left;
+    }
+    .gap-button:hover { background: #2c3737; }
+    .gap-button:focus-visible { outline-offset: -3px; }
+    .diff-footer {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px;
+      padding: 8px 13px; border-top: 1px solid var(--line); background: #222729; font-size: 12px; color: var(--muted);
+    }
+    .legend { display: flex; gap: 15px; }
+    .legend b { font-family: var(--mono); margin-right: 3px; }
+    .legend .left b { color: var(--mvc); }
+    .legend .right b { color: var(--flux); }
+    .diff[data-side="mvc"] .pair, .diff[data-side="flux"] .pair { grid-template-columns: minmax(0, 1fr); }
+    .diff[data-side="mvc"] .pair > :nth-child(2), .diff[data-side="flux"] .pair > :first-child { display: none; }
+    .diff[data-side="mvc"] .empty.mvc, .diff[data-side="flux"] .empty.flux { display: none; }
+    .diff[data-side="flux"] .pair > :nth-child(2) { border-inline-start: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @media (max-width: 1100px) {
+      .shell { width: calc(100% - 48px); }
+      .layout { grid-template-columns: 145px minmax(0, 1fr); gap: 20px; }
+      .section-header { flex-wrap: wrap; gap: 11px; }
+      .controls { justify-content: start; }
+    }
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .topics { position: static; display: flex; flex-wrap: wrap; gap: 6px 17px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+      .topics h2 { padding: 0 0 4px; }
+      .topic-group { display: flex; flex-wrap: wrap; }
+      .full-topic { border: 0; padding: 0; align-self: end; }
+      .topic { min-height: 33px; padding: 4px 8px; border-color: var(--line); }
+    }
+    @media (max-width: 640px) {
+      .shell { width: calc(100% - 28px); }
+      .masthead .shell { padding-block: 23px 25px; }
+      .layout { padding-top: 16px; }
+      .topics { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+      .topics > :first-child { grid-column: 1 / -1; }
+      .topic-group { flex-wrap: nowrap; overflow: auto; padding: 3px; margin-inline: -3px; scrollbar-width: thin; scrollbar-color: #586263 var(--page); }
+      .topic { white-space: nowrap; }
+      .switch.side-switch { display: inline-flex; }
+      .code-viewport { max-height: 60vh; }
+      .pane-header { padding: 8px 9px; }
+      .code-cell { padding-right: 6px; }
+      .diff[data-side="split"] .code-cell { grid-template-columns: 3.6ch 1.3ch minmax(0, 1fr); }
+      .diff[data-side="split"] .filename { font-size: 10px; }
+      .diff[data-side="split"] .copy { padding-inline: 4px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="shell">
+      <p class="path">backend / fileStorage</p>
+      <h1>File storage comparison</h1>
+      <p class="intro">Spring MVC and WebFlux, line by line.</p>
+    </div>
+  </header>
+
+  <main class="shell layout">
+    <nav id="topics" class="topics" aria-label="Comparison topics"></nav>
+    <section aria-labelledby="topic-title">
+      <header class="section-header">
+        <div>
+          <h2 id="topic-title"></h2>
+          <p id="topic-note" class="note"></p>
+        </div>
+        <div class="controls">
+          <div class="switch side-switch" role="group" aria-label="Visible source">
+            <button type="button" data-side-option="mvc" aria-pressed="false">MVC</button>
+            <button type="button" data-side-option="split" aria-pressed="true">Side by side</button>
+            <button type="button" data-side-option="flux" aria-pressed="false">WebFlux</button>
+          </div>
+          <div class="switch" role="group" aria-label="Visible lines">
+            <button type="button" id="all-lines" aria-pressed="true">All lines</button>
+            <button type="button" id="changes" aria-pressed="false">Changes only</button>
+          </div>
+          <label class="compare-option"><input id="ignore-indentation" type="checkbox" checked> Ignore indentation</label>
+        </div>
+      </header>
+
+      <div class="diff" id="diff" data-side="split">
+        <div class="pair">
+          <div class="pane-header mvc">
+            <div class="pane-meta">
+              <h3>Spring MVC</h3>
+              <a class="filename" id="mvc-file" href="#"></a>
+            </div>
+            <button class="copy" data-copy="mvc" type="button" aria-label="Copy Spring MVC code">Copy</button>
+          </div>
+          <div class="pane-header flux">
+            <div class="pane-meta">
+              <h3>Spring WebFlux</h3>
+              <a class="filename" id="flux-file" href="#"></a>
+            </div>
+            <button class="copy" data-copy="flux" type="button" aria-label="Copy Spring WebFlux code">Copy</button>
+          </div>
+        </div>
+        <div class="code-viewport" id="code-viewport" tabindex="0" role="region" aria-label="Side-by-side Kotlin diff"></div>
+        <footer class="diff-footer">
+          <div class="legend">
+            <span class="left"><b>−</b> MVC line</span>
+            <span class="right"><b>+</b> WebFlux line</span>
+          </div>
+          <span id="counts"></span>
+        </footer>
+      </div>
+      <p id="copy-status" class="sr-only" role="status"></p>
+      <noscript><p class="note">Enable JavaScript to browse the comparison.</p></noscript>
+    </section>
+  </main>
+
+  <script type="application/json" id="kotlin-sources">{"mvc": {"path": "standard/src/main/kotlin/dev/generalfullstack/filestorage/standard/service/ImageStorageService.kt", "text": "package dev.generalfullstack.filestorage.standard.service\n\nimport dev.generalfullstack.filestorage.standard.api.dto.CompleteImageUploadResponse\nimport dev.generalfullstack.filestorage.standard.api.dto.CreateImageDownloadResponse\nimport dev.generalfullstack.filestorage.standard.api.dto.CreateImageUploadRequest\nimport dev.generalfullstack.filestorage.standard.api.dto.CreateImageUploadResponse\nimport dev.generalfullstack.filestorage.standard.api.dto.ImageStatus\nimport dev.generalfullstack.filestorage.standard.api.dto.ImageVisibility\nimport dev.generalfullstack.filestorage.standard.api.dto.MAX_IMAGE_SIZE_BYTES\nimport dev.generalfullstack.filestorage.standard.api.error.ImageApiException\nimport dev.generalfullstack.filestorage.standard.config.S3Properties\nimport dev.openfga.sdk.api.client.OpenFgaClient\nimport dev.openfga.sdk.api.client.model.ClientCheckRequest\nimport dev.openfga.sdk.api.client.model.ClientTupleKey\nimport dev.openfga.sdk.api.client.model.ClientTupleKeyWithoutCondition\nimport dev.openfga.sdk.api.client.model.ClientWriteRequest\nimport org.springframework.http.HttpStatus\nimport org.springframework.stereotype.Service\nimport software.amazon.awssdk.core.ResponseBytes\nimport software.amazon.awssdk.core.exception.SdkException\nimport software.amazon.awssdk.core.sync.RequestBody\nimport software.amazon.awssdk.services.s3.S3Client\nimport software.amazon.awssdk.services.s3.model.DeleteObjectRequest\nimport software.amazon.awssdk.services.s3.model.GetObjectRequest\nimport software.amazon.awssdk.services.s3.model.GetObjectResponse\nimport software.amazon.awssdk.services.s3.model.HeadObjectRequest\nimport software.amazon.awssdk.services.s3.model.HeadObjectResponse\nimport software.amazon.awssdk.services.s3.model.PutObjectRequest\nimport software.amazon.awssdk.services.s3.model.S3Exception\nimport software.amazon.awssdk.services.s3.presigner.S3Presigner\nimport software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest\nimport software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest\nimport java.io.ByteArrayInputStream\nimport java.io.IOException\nimport java.util.UUID\nimport java.util.concurrent.CompletableFuture\nimport java.util.concurrent.ExecutionException\nimport javax.imageio.ImageIO\nimport javax.imageio.stream.MemoryCacheImageInputStream\n\n@Service\nclass ImageStorageService(\n    private val s3Client: S3Client,\n    private val s3Presigner: S3Presigner,\n    private val openFgaClient: OpenFgaClient,\n    private val s3Properties: S3Properties,\n) {\n    fun createUpload(\n        ownerId: String,\n        request: CreateImageUploadRequest,\n    ): CreateImageUploadResponse {\n        val response = presign { prepareUpload(ownerId, request) }\n        writeOwner(response.imageId, ownerId)\n        return response\n    }\n\n    fun completeUpload(\n        ownerId: String,\n        imageId: UUID,\n    ): CompleteImageUploadResponse {\n        val key = stagingKey(imageId)\n        requireRelation(ownerId, imageId, \"can_complete\")\n        val stagedHead = headObject(key)\n        val visibility = validateStagedUpload(stagedHead, ownerId)\n        val size = stagedHead.contentLength()\n\n        val stagedObject = getStagedObject(key, size, stagedHead.eTag())\n        val bytes = stagedObject.asByteArrayUnsafe()\n        val contentType = validateImage(bytes, size, stagedObject.response().contentType())\n        putPublishedImage(imageId, ownerId, visibility, contentType, bytes)\n\n        deleteObject(key)\n        return CompleteImageUploadResponse(imageId, ImageStatus.AVAILABLE)\n    }\n\n    fun createDownload(\n        imageId: UUID,\n        requesterId: String?,\n    ): CreateImageDownloadResponse {\n        val image = headObject(imageKey(imageId))\n        if (storedVisibility(image) == ImageVisibility.PRIVATE) {\n            val userId = requesterId\n                ?: throw ImageApiException(HttpStatus.UNAUTHORIZED, \"Sign-in is required to download this image.\")\n            requireRelation(userId, imageId, \"can_download_private\")\n        }\n\n        return presign { signDownload(imageId) }\n    }\n\n    fun deleteImage(\n        ownerId: String,\n        imageId: UUID,\n    ) {\n        val image = headObject(imageKey(imageId))\n        requireRelation(ownerId, imageId, \"can_delete\")\n        validateDeletion(image, ownerId)\n\n        deleteObject(imageKey(imageId))\n        deleteObject(stagingKey(imageId))\n        deleteOwner(imageId, ownerId)\n    }\n\n    fun grantViewer(\n        ownerId: String,\n        imageId: UUID,\n        recipientUserId: UUID,\n    ) {\n        headObject(imageKey(imageId))\n        requireRelation(ownerId, imageId, \"can_delete\")\n\n        val recipientId = recipientUserId.toString()\n        if (recipientId == ownerId) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"The owner already has access to this image.\")\n        }\n\n        writeViewer(imageId, recipientId)\n    }\n\n    fun revokeViewer(\n        ownerId: String,\n        imageId: UUID,\n        recipientUserId: UUID,\n    ) {\n        headObject(imageKey(imageId))\n        requireRelation(ownerId, imageId, \"can_delete\")\n\n        deleteViewer(imageId, recipientUserId.toString())\n    }\n\n    private fun prepareUpload(ownerId: String, request: CreateImageUploadRequest): CreateImageUploadResponse {\n        validateUploadRequest(request)\n\n        val imageId = UUID.randomUUID()\n        val putObjectRequest = PutObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(stagingKey(imageId))\n            .contentType(request.contentType)\n            .metadata(\n                mapOf(\n                    OWNER_ID_METADATA to ownerId,\n                    VISIBILITY_METADATA to request.visibility.name,\n                    DECLARED_SIZE_METADATA to request.sizeBytes.toString(),\n                ),\n            )\n            .build()\n        val presignedRequest = s3Presigner.presignPutObject(\n            PutObjectPresignRequest.builder()\n                .signatureDuration(s3Properties.uploadUrlLifetime)\n                .putObjectRequest(putObjectRequest)\n                .build(),\n        )\n\n        return CreateImageUploadResponse(\n            imageId = imageId,\n            uploadUrl = presignedRequest.url().toURI(),\n            requiredHeaders = presignedRequest.signedHeaders()\n                .filterKeys { !it.equals(\"host\", ignoreCase = true) }\n                .mapValues { (_, values) -> values.joinToString(\",\") },\n            expiresAt = presignedRequest.expiration(),\n        )\n    }\n\n    private fun signDownload(imageId: UUID): CreateImageDownloadResponse {\n        val request = GetObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(imageKey(imageId))\n            .build()\n        val presignedRequest = s3Presigner.presignGetObject(\n            GetObjectPresignRequest.builder()\n                .signatureDuration(s3Properties.downloadUrlLifetime)\n                .getObjectRequest(request)\n                .build(),\n        )\n\n        return CreateImageDownloadResponse(\n            downloadUrl = presignedRequest.url().toURI(),\n            expiresAt = presignedRequest.expiration(),\n        )\n    }\n\n    private fun validateUploadRequest(request: CreateImageUploadRequest) {\n        if (request.sizeBytes !in 1..MAX_IMAGE_SIZE_BYTES) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"Image size must be between 1 byte and 5 MiB.\")\n        }\n        if (request.contentType != JPEG_CONTENT_TYPE && request.contentType != PNG_CONTENT_TYPE) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"Only JPEG and PNG images are supported.\")\n        }\n    }\n\n    private fun putPublishedImage(\n        imageId: UUID,\n        ownerId: String,\n        visibility: ImageVisibility,\n        contentType: String,\n        bytes: ByteArray,\n    ) {\n        val request = PutObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(imageKey(imageId))\n            .contentType(contentType)\n            .metadata(\n                mapOf(\n                    OWNER_ID_METADATA to ownerId,\n                    VISIBILITY_METADATA to visibility.name,\n                ),\n            )\n            .build()\n\n        s3Call {\n            s3Client.putObject(request, RequestBody.fromBytes(bytes))\n        }\n    }\n\n    private fun getStagedObject(key: String, size: Long, eTag: String?): ResponseBytes\u003cGetObjectResponse> =\n        s3Call {\n            s3Client.getObjectAsBytes(\n                GetObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .ifMatch(eTag)\n                    // S3 ranges are inclusive. Read one extra byte to detect an oversized object.\n                    .range(\"bytes=0-$size\")\n                    .build(),\n            )\n        }\n\n    private fun headObject(key: String): HeadObjectResponse =\n        s3Call {\n            s3Client.headObject(\n                HeadObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .build(),\n            )\n        }\n\n    private fun deleteObject(key: String) {\n        s3Call {\n            s3Client.deleteObject(\n                DeleteObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .build(),\n            )\n        }\n    }\n\n    private fun writeOwner(imageId: UUID, ownerId: String) {\n        val tuple = ClientTupleKey()\n            .user(userObject(ownerId))\n            .relation(\"owner\")\n            ._object(imageObject(imageId))\n\n        openFgaCall {\n            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))\n        }\n    }\n\n    private fun deleteOwner(imageId: UUID, ownerId: String) {\n        val tuple = ClientTupleKeyWithoutCondition()\n            .user(userObject(ownerId))\n            .relation(\"owner\")\n            ._object(imageObject(imageId))\n\n        openFgaCall {\n            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))\n        }\n    }\n\n    private fun writeViewer(imageId: UUID, viewerId: String) {\n        val tuple = ClientTupleKey()\n            .user(userObject(viewerId))\n            .relation(\"viewer\")\n            ._object(imageObject(imageId))\n\n        openFgaCall {\n            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))\n        }\n    }\n\n    private fun deleteViewer(imageId: UUID, viewerId: String) {\n        val tuple = ClientTupleKeyWithoutCondition()\n            .user(userObject(viewerId))\n            .relation(\"viewer\")\n            ._object(imageObject(imageId))\n\n        openFgaCall {\n            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))\n        }\n    }\n\n    private fun requireRelation(userId: String, imageId: UUID, relation: String) {\n        val request = ClientCheckRequest()\n            .user(userObject(userId))\n            .relation(relation)\n            ._object(imageObject(imageId))\n\n        val response = openFgaCall { openFgaClient.check(request) }\n        if (response.allowed != true) {\n            throw ImageApiException(HttpStatus.FORBIDDEN, \"You are not allowed to access this image.\")\n        }\n    }\n\n    private fun \u003cT : Any> openFgaCall(supplier: () -> CompletableFuture\u003cT>): T =\n        try {\n            supplier().get()\n        } catch (cause: InterruptedException) {\n            Thread.currentThread().interrupt()\n            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"OpenFGA request was interrupted.\", cause)\n        } catch (exception: ExecutionException) {\n            val cause = exception.cause ?: exception\n            if (cause is Error) throw cause\n            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"OpenFGA request failed.\", cause)\n        } catch (cause: Exception) {\n            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"OpenFGA request failed.\", cause)\n        }\n\n    private fun \u003cT : Any> s3Call(supplier: () -> T): T =\n        try {\n            supplier()\n        } catch (cause: SdkException) {\n            throw when ((cause as? S3Exception)?.statusCode()) {\n                404 -> ImageApiException(HttpStatus.NOT_FOUND, \"Image not found.\", cause)\n                412 -> ImageApiException(HttpStatus.CONFLICT, \"The staged upload changed during completion.\", cause)\n                else -> ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"S3 request failed.\", cause)\n            }\n        }\n\n    private fun \u003cT : Any> presign(supplier: () -> T): T =\n        try {\n            supplier()\n        } catch (cause: SdkException) {\n            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"S3 URL signing failed.\", cause)\n        }\n\n    private fun validateStagedUpload(image: HeadObjectResponse, ownerId: String): ImageVisibility {\n        val metadata = image.metadata()\n        if (metadata[OWNER_ID_METADATA] != ownerId) {\n            throw ImageApiException(HttpStatus.FORBIDDEN, \"This upload belongs to another user.\")\n        }\n\n        val declaredSize = metadata[DECLARED_SIZE_METADATA]?.toLongOrNull()\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The upload metadata is invalid.\")\n        val visibility = imageVisibility(metadata[VISIBILITY_METADATA])\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The upload metadata is invalid.\")\n\n        if (declaredSize !in 1..MAX_IMAGE_SIZE_BYTES || image.contentLength() != declaredSize) {\n            throw sizeMismatch()\n        }\n        return visibility\n    }\n\n    private fun validateDeletion(image: HeadObjectResponse, ownerId: String) {\n        if (image.metadata()[OWNER_ID_METADATA] != ownerId) {\n            throw ImageApiException(HttpStatus.FORBIDDEN, \"Only the uploader can delete this image.\")\n        }\n        storedVisibility(image)\n    }\n\n    private fun storedVisibility(image: HeadObjectResponse): ImageVisibility =\n        imageVisibility(image.metadata()[VISIBILITY_METADATA])\n            ?: throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, \"The stored image metadata is invalid.\")\n\n    private fun imageVisibility(value: String?): ImageVisibility? =\n        ImageVisibility.entries.firstOrNull { it.name == value }\n\n    private fun sizeMismatch(): ImageApiException =\n        ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded image size does not match its declaration.\")\n\n    private fun validateImage(bytes: ByteArray, size: Long, contentType: String?): String {\n        if (bytes.size.toLong() != size) throw sizeMismatch()\n\n        val detectedContentType = detectImageContentType(bytes)\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded bytes are not a supported image.\")\n        if (contentType != detectedContentType) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded image content type does not match its bytes.\")\n        }\n        return detectedContentType\n    }\n\n    private fun detectImageContentType(bytes: ByteArray): String? {\n        MemoryCacheImageInputStream(ByteArrayInputStream(bytes)).use { input ->\n            val readers = ImageIO.getImageReaders(input)\n            if (!readers.hasNext()) return null\n\n            val reader = readers.next()\n            try {\n                reader.input = input\n                val contentType = when (reader.formatName.lowercase()) {\n                    \"jpeg\", \"jpg\" -> JPEG_CONTENT_TYPE\n                    \"png\" -> PNG_CONTENT_TYPE\n                    else -> return null\n                }\n\n                val pixelCount = reader.getWidth(0).toLong() * reader.getHeight(0).toLong()\n                if (pixelCount > MAX_IMAGE_PIXEL_COUNT) {\n                    throw ImageApiException(HttpStatus.CONTENT_TOO_LARGE, \"The image dimensions are too large.\")\n                }\n\n                reader.read(0) ?: return null\n\n                return contentType\n            } catch (exception: IOException) {\n                return null\n            } finally {\n                reader.dispose()\n            }\n        }\n    }\n\n    private fun stagingKey(imageId: UUID): String = \"staging/$imageId\"\n\n    private fun imageKey(imageId: UUID): String = \"images/$imageId\"\n\n    private fun userObject(userId: String): String = \"user:$userId\"\n\n    private fun imageObject(imageId: UUID): String = \"image:$imageId\"\n\n    private companion object {\n        const val OWNER_ID_METADATA = \"owner-id\"\n        const val VISIBILITY_METADATA = \"visibility\"\n        const val DECLARED_SIZE_METADATA = \"declared-size\"\n        const val JPEG_CONTENT_TYPE = \"image/jpeg\"\n        const val PNG_CONTENT_TYPE = \"image/png\"\n        const val MAX_IMAGE_PIXEL_COUNT = 16_000_000L\n    }\n}\n"}, "flux": {"path": "webFlux/src/main/kotlin/dev/generalfullstack/filestorage/webflux/service/ImageStorageService.kt", "text": "package dev.generalfullstack.filestorage.webflux.service\n\nimport dev.generalfullstack.filestorage.webflux.api.dto.CompleteImageUploadResponse\nimport dev.generalfullstack.filestorage.webflux.api.dto.CreateImageDownloadResponse\nimport dev.generalfullstack.filestorage.webflux.api.dto.CreateImageUploadRequest\nimport dev.generalfullstack.filestorage.webflux.api.dto.CreateImageUploadResponse\nimport dev.generalfullstack.filestorage.webflux.api.dto.ImageStatus\nimport dev.generalfullstack.filestorage.webflux.api.dto.ImageVisibility\nimport dev.generalfullstack.filestorage.webflux.api.dto.MAX_IMAGE_SIZE_BYTES\nimport dev.generalfullstack.filestorage.webflux.api.error.ImageApiException\nimport dev.generalfullstack.filestorage.webflux.config.S3Properties\nimport dev.openfga.sdk.api.client.OpenFgaClient\nimport dev.openfga.sdk.api.client.model.ClientCheckRequest\nimport dev.openfga.sdk.api.client.model.ClientTupleKey\nimport dev.openfga.sdk.api.client.model.ClientTupleKeyWithoutCondition\nimport dev.openfga.sdk.api.client.model.ClientWriteRequest\nimport org.springframework.beans.factory.annotation.Qualifier\nimport org.springframework.http.HttpStatus\nimport org.springframework.stereotype.Service\nimport reactor.core.Exceptions\nimport reactor.core.publisher.Mono\nimport reactor.core.scheduler.Scheduler\nimport reactor.core.scheduler.Schedulers\nimport software.amazon.awssdk.core.ResponseBytes\nimport software.amazon.awssdk.core.async.AsyncRequestBody\nimport software.amazon.awssdk.core.async.AsyncResponseTransformer\nimport software.amazon.awssdk.core.exception.SdkException\nimport software.amazon.awssdk.services.s3.S3AsyncClient\nimport software.amazon.awssdk.services.s3.model.DeleteObjectRequest\nimport software.amazon.awssdk.services.s3.model.GetObjectRequest\nimport software.amazon.awssdk.services.s3.model.GetObjectResponse\nimport software.amazon.awssdk.services.s3.model.HeadObjectRequest\nimport software.amazon.awssdk.services.s3.model.HeadObjectResponse\nimport software.amazon.awssdk.services.s3.model.PutObjectRequest\nimport software.amazon.awssdk.services.s3.model.S3Exception\nimport software.amazon.awssdk.services.s3.presigner.S3Presigner\nimport software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest\nimport software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest\nimport java.io.ByteArrayInputStream\nimport java.io.IOException\nimport java.util.UUID\nimport java.util.concurrent.CompletableFuture\nimport java.util.concurrent.RejectedExecutionException\nimport javax.imageio.ImageIO\nimport javax.imageio.stream.MemoryCacheImageInputStream\n\n@Service\nclass ImageStorageService(\n    private val s3AsyncClient: S3AsyncClient,\n    private val s3Presigner: S3Presigner,\n    private val openFgaClient: OpenFgaClient,\n    private val s3Properties: S3Properties,\n    @Qualifier(\"imageDecodeScheduler\") private val imageDecodeScheduler: Scheduler,\n) {\n    fun createUpload(\n        ownerId: String,\n        request: CreateImageUploadRequest,\n    ): Mono\u003cCreateImageUploadResponse> =\n        presign { prepareUpload(ownerId, request) }\n            .flatMap { response -> writeOwner(response.imageId, ownerId).thenReturn(response) }\n\n    fun completeUpload(\n        ownerId: String,\n        imageId: UUID,\n    ): Mono\u003cCompleteImageUploadResponse> {\n        val key = stagingKey(imageId)\n        return requireRelation(ownerId, imageId, \"can_complete\")\n            .then(headObject(key))\n            .flatMap { stagedHead ->\n                val visibility = validateStagedUpload(stagedHead, ownerId)\n                val size = stagedHead.contentLength()\n\n                getStagedObject(key, size, stagedHead.eTag()).flatMap { stagedObject ->\n                    val bytes = stagedObject.asByteArrayUnsafe()\n                    validateImageAsync(bytes, size, stagedObject.response().contentType())\n                        .flatMap { contentType -> putPublishedImage(imageId, ownerId, visibility, contentType, bytes) }\n                }\n            }\n            .then(deleteObject(key))\n            .thenReturn(CompleteImageUploadResponse(imageId, ImageStatus.AVAILABLE))\n    }\n\n    fun createDownload(\n        imageId: UUID,\n        requesterId: String?,\n    ): Mono\u003cCreateImageDownloadResponse> =\n        headObject(imageKey(imageId)).flatMap { image ->\n            val authorization = if (storedVisibility(image) == ImageVisibility.PRIVATE) {\n                val userId = requesterId\n                    ?: throw ImageApiException(HttpStatus.UNAUTHORIZED, \"Sign-in is required to download this image.\")\n                requireRelation(userId, imageId, \"can_download_private\")\n            } else {\n                Mono.empty\u003cVoid>()\n            }\n\n            authorization.then(presign { signDownload(imageId) })\n        }\n\n    fun deleteImage(\n        ownerId: String,\n        imageId: UUID,\n    ): Mono\u003cVoid> =\n        headObject(imageKey(imageId))\n            .flatMap { image ->\n                requireRelation(ownerId, imageId, \"can_delete\")\n                    .then(Mono.fromRunnable\u003cVoid> { validateDeletion(image, ownerId) })\n            }\n            .then(deleteObject(imageKey(imageId)))\n            .then(deleteObject(stagingKey(imageId)))\n            .then(deleteOwner(imageId, ownerId))\n\n    fun grantViewer(\n        ownerId: String,\n        imageId: UUID,\n        recipientUserId: UUID,\n    ): Mono\u003cVoid> =\n        headObject(imageKey(imageId))\n            .then(requireRelation(ownerId, imageId, \"can_delete\"))\n            .then(\n                Mono.defer {\n                    val recipientId = recipientUserId.toString()\n                    if (recipientId == ownerId) {\n                        throw ImageApiException(HttpStatus.BAD_REQUEST, \"The owner already has access to this image.\")\n                    }\n                    writeViewer(imageId, recipientId)\n                },\n            )\n\n    fun revokeViewer(\n        ownerId: String,\n        imageId: UUID,\n        recipientUserId: UUID,\n    ): Mono\u003cVoid> =\n        headObject(imageKey(imageId))\n            .then(requireRelation(ownerId, imageId, \"can_delete\"))\n            .then(deleteViewer(imageId, recipientUserId.toString()))\n\n    private fun prepareUpload(ownerId: String, request: CreateImageUploadRequest): CreateImageUploadResponse {\n        validateUploadRequest(request)\n\n        val imageId = UUID.randomUUID()\n        val putObjectRequest = PutObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(stagingKey(imageId))\n            .contentType(request.contentType)\n            .metadata(\n                mapOf(\n                    OWNER_ID_METADATA to ownerId,\n                    VISIBILITY_METADATA to request.visibility.name,\n                    DECLARED_SIZE_METADATA to request.sizeBytes.toString(),\n                ),\n            )\n            .build()\n        val presignedRequest = s3Presigner.presignPutObject(\n            PutObjectPresignRequest.builder()\n                .signatureDuration(s3Properties.uploadUrlLifetime)\n                .putObjectRequest(putObjectRequest)\n                .build(),\n        )\n\n        return CreateImageUploadResponse(\n            imageId = imageId,\n            uploadUrl = presignedRequest.url().toURI(),\n            requiredHeaders = presignedRequest.signedHeaders()\n                .filterKeys { !it.equals(\"host\", ignoreCase = true) }\n                .mapValues { (_, values) -> values.joinToString(\",\") },\n            expiresAt = presignedRequest.expiration(),\n        )\n    }\n\n    private fun signDownload(imageId: UUID): CreateImageDownloadResponse {\n        val request = GetObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(imageKey(imageId))\n            .build()\n        val presignedRequest = s3Presigner.presignGetObject(\n            GetObjectPresignRequest.builder()\n                .signatureDuration(s3Properties.downloadUrlLifetime)\n                .getObjectRequest(request)\n                .build(),\n        )\n\n        return CreateImageDownloadResponse(\n            downloadUrl = presignedRequest.url().toURI(),\n            expiresAt = presignedRequest.expiration(),\n        )\n    }\n\n    private fun validateUploadRequest(request: CreateImageUploadRequest) {\n        if (request.sizeBytes !in 1..MAX_IMAGE_SIZE_BYTES) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"Image size must be between 1 byte and 5 MiB.\")\n        }\n        if (request.contentType != JPEG_CONTENT_TYPE && request.contentType != PNG_CONTENT_TYPE) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"Only JPEG and PNG images are supported.\")\n        }\n    }\n\n    private fun putPublishedImage(\n        imageId: UUID,\n        ownerId: String,\n        visibility: ImageVisibility,\n        contentType: String,\n        bytes: ByteArray,\n    ): Mono\u003cVoid> {\n        val request = PutObjectRequest.builder()\n            .bucket(s3Properties.bucket)\n            .key(imageKey(imageId))\n            .contentType(contentType)\n            .metadata(\n                mapOf(\n                    OWNER_ID_METADATA to ownerId,\n                    VISIBILITY_METADATA to visibility.name,\n                ),\n            )\n            .build()\n\n        return s3Call {\n            s3AsyncClient.putObject(request, AsyncRequestBody.fromBytes(bytes))\n        }.then()\n    }\n\n    private fun getStagedObject(key: String, size: Long, eTag: String?): Mono\u003cResponseBytes\u003cGetObjectResponse>> =\n        s3Call {\n            s3AsyncClient.getObject(\n                GetObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .ifMatch(eTag)\n                    // S3 ranges are inclusive. Read one extra byte to detect an oversized object.\n                    .range(\"bytes=0-$size\")\n                    .build(),\n                AsyncResponseTransformer.toBytes(),\n            )\n        }\n\n    private fun headObject(key: String): Mono\u003cHeadObjectResponse> =\n        s3Call {\n            s3AsyncClient.headObject(\n                HeadObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .build(),\n            )\n        }\n\n    private fun deleteObject(key: String): Mono\u003cVoid> =\n        s3Call {\n            s3AsyncClient.deleteObject(\n                DeleteObjectRequest.builder()\n                    .bucket(s3Properties.bucket)\n                    .key(key)\n                    .build(),\n            )\n        }.then()\n\n    private fun writeOwner(imageId: UUID, ownerId: String): Mono\u003cVoid> {\n        val tuple = ClientTupleKey()\n            .user(userObject(ownerId))\n            .relation(\"owner\")\n            ._object(imageObject(imageId))\n\n        return openFgaCall {\n            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))\n        }.then()\n    }\n\n    private fun deleteOwner(imageId: UUID, ownerId: String): Mono\u003cVoid> {\n        val tuple = ClientTupleKeyWithoutCondition()\n            .user(userObject(ownerId))\n            .relation(\"owner\")\n            ._object(imageObject(imageId))\n\n        return openFgaCall {\n            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))\n        }.then()\n    }\n\n    private fun writeViewer(imageId: UUID, viewerId: String): Mono\u003cVoid> {\n        val tuple = ClientTupleKey()\n            .user(userObject(viewerId))\n            .relation(\"viewer\")\n            ._object(imageObject(imageId))\n\n        return openFgaCall {\n            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))\n        }.then()\n    }\n\n    private fun deleteViewer(imageId: UUID, viewerId: String): Mono\u003cVoid> {\n        val tuple = ClientTupleKeyWithoutCondition()\n            .user(userObject(viewerId))\n            .relation(\"viewer\")\n            ._object(imageObject(imageId))\n\n        return openFgaCall {\n            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))\n        }.then()\n    }\n\n    private fun requireRelation(userId: String, imageId: UUID, relation: String): Mono\u003cVoid> {\n        val request = ClientCheckRequest()\n            .user(userObject(userId))\n            .relation(relation)\n            ._object(imageObject(imageId))\n\n        return openFgaCall { openFgaClient.check(request) }\n            .flatMap { response ->\n                if (response.allowed == true) {\n                    Mono.empty()\n                } else {\n                    Mono.error(ImageApiException(HttpStatus.FORBIDDEN, \"You are not allowed to access this image.\"))\n                }\n            }\n    }\n\n    private fun \u003cT : Any> openFgaCall(supplier: () -> CompletableFuture\u003cT>): Mono\u003cT> =\n        Mono.fromFuture { supplier() }\n            .onErrorMap { cause ->\n                Exceptions.throwIfFatal(cause)\n                ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"OpenFGA request failed.\", cause)\n            }\n\n    private fun \u003cT : Any> s3Call(supplier: () -> CompletableFuture\u003cT>): Mono\u003cT> =\n        // The SDK can do synchronous work before it returns its future.\n        Mono.fromFuture { supplier() }\n            .subscribeOn(Schedulers.boundedElastic())\n            .onErrorMap(SdkException::class.java) { cause ->\n                when ((cause as? S3Exception)?.statusCode()) {\n                    404 -> ImageApiException(HttpStatus.NOT_FOUND, \"Image not found.\", cause)\n                    412 -> ImageApiException(HttpStatus.CONFLICT, \"The staged upload changed during completion.\", cause)\n                    else -> ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"S3 request failed.\", cause)\n                }\n            }\n\n    private fun \u003cT : Any> presign(supplier: () -> T): Mono\u003cT> =\n        Mono.fromCallable { supplier() }\n            .subscribeOn(Schedulers.boundedElastic())\n            .onErrorMap(SdkException::class.java) { cause ->\n                ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"S3 URL signing failed.\", cause)\n            }\n\n    private fun validateStagedUpload(image: HeadObjectResponse, ownerId: String): ImageVisibility {\n        val metadata = image.metadata()\n        if (metadata[OWNER_ID_METADATA] != ownerId) {\n            throw ImageApiException(HttpStatus.FORBIDDEN, \"This upload belongs to another user.\")\n        }\n\n        val declaredSize = metadata[DECLARED_SIZE_METADATA]?.toLongOrNull()\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The upload metadata is invalid.\")\n        val visibility = imageVisibility(metadata[VISIBILITY_METADATA])\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The upload metadata is invalid.\")\n\n        if (declaredSize !in 1..MAX_IMAGE_SIZE_BYTES || image.contentLength() != declaredSize) {\n            throw sizeMismatch()\n        }\n        return visibility\n    }\n\n    private fun validateDeletion(image: HeadObjectResponse, ownerId: String) {\n        if (image.metadata()[OWNER_ID_METADATA] != ownerId) {\n            throw ImageApiException(HttpStatus.FORBIDDEN, \"Only the uploader can delete this image.\")\n        }\n        storedVisibility(image)\n    }\n\n    private fun storedVisibility(image: HeadObjectResponse): ImageVisibility =\n        imageVisibility(image.metadata()[VISIBILITY_METADATA])\n            ?: throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, \"The stored image metadata is invalid.\")\n\n    private fun imageVisibility(value: String?): ImageVisibility? =\n        ImageVisibility.entries.firstOrNull { it.name == value }\n\n    private fun sizeMismatch(): ImageApiException =\n        ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded image size does not match its declaration.\")\n\n    private fun validateImageAsync(bytes: ByteArray, size: Long, contentType: String?): Mono\u003cString> =\n        Mono.fromCallable { validateImage(bytes, size, contentType) }\n            .subscribeOn(imageDecodeScheduler)\n            .onErrorMap(RejectedExecutionException::class.java) { cause ->\n                ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, \"Image validation is busy. Try again shortly.\", cause)\n            }\n\n    private fun validateImage(bytes: ByteArray, size: Long, contentType: String?): String {\n        if (bytes.size.toLong() != size) throw sizeMismatch()\n\n        val detectedContentType = detectImageContentType(bytes)\n            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded bytes are not a supported image.\")\n        if (contentType != detectedContentType) {\n            throw ImageApiException(HttpStatus.BAD_REQUEST, \"The uploaded image content type does not match its bytes.\")\n        }\n        return detectedContentType\n    }\n\n    private fun detectImageContentType(bytes: ByteArray): String? {\n        MemoryCacheImageInputStream(ByteArrayInputStream(bytes)).use { input ->\n            val readers = ImageIO.getImageReaders(input)\n            if (!readers.hasNext()) return null\n\n            val reader = readers.next()\n            try {\n                reader.input = input\n                val contentType = when (reader.formatName.lowercase()) {\n                    \"jpeg\", \"jpg\" -> JPEG_CONTENT_TYPE\n                    \"png\" -> PNG_CONTENT_TYPE\n                    else -> return null\n                }\n\n                val pixelCount = reader.getWidth(0).toLong() * reader.getHeight(0).toLong()\n                if (pixelCount > MAX_IMAGE_PIXEL_COUNT) {\n                    throw ImageApiException(HttpStatus.CONTENT_TOO_LARGE, \"The image dimensions are too large.\")\n                }\n\n                reader.read(0) ?: return null\n\n                return contentType\n            } catch (exception: IOException) {\n                return null\n            } finally {\n                reader.dispose()\n            }\n        }\n    }\n\n    private fun stagingKey(imageId: UUID): String = \"staging/$imageId\"\n\n    private fun imageKey(imageId: UUID): String = \"images/$imageId\"\n\n    private fun userObject(userId: String): String = \"user:$userId\"\n\n    private fun imageObject(imageId: UUID): String = \"image:$imageId\"\n\n    private companion object {\n        const val OWNER_ID_METADATA = \"owner-id\"\n        const val VISIBILITY_METADATA = \"visibility\"\n        const val DECLARED_SIZE_METADATA = \"declared-size\"\n        const val JPEG_CONTENT_TYPE = \"image/jpeg\"\n        const val PNG_CONTENT_TYPE = \"image/png\"\n        const val MAX_IMAGE_PIXEL_COUNT = 16_000_000L\n    }\n}\n"}}</script>
+  <script>
+    const sources = JSON.parse(document.getElementById('kotlin-sources').textContent);
+    const sides = ['mvc', 'flux'];
+    const filename = 'ImageStorageService.kt';
+    const groups = [
+      { label: 'Operations', items: [
+        { id: 'create', title: 'Create upload', both: ['createUpload'],
+          note: 'WebFlux uses thenReturn to emit the staging URL after the owner write completes.' },
+        { id: 'complete', title: 'Complete upload', both: ['completeUpload'],
+          note: 'Both call the same validation helpers. WebFlux sequences them with then and flatMap.' },
+        { id: 'download', title: 'Create download', both: ['createDownload'],
+          note: 'Private images require a permission check. WebFlux waits for it before signing the URL.' },
+        { id: 'delete', title: 'Delete image', both: ['deleteImage'],
+          note: 'WebFlux chains the deletes with then and returns Mono<Void> to signal completion.' },
+        { id: 'sharing', title: 'Manage viewers', both: ['grantViewer', 'revokeViewer'],
+          note: 'Both check ownership before writing or deleting a viewer tuple. In WebFlux, a failed step skips the rest of the chain.' },
+      ] },
+      { label: 'Inside the service', items: [
+        { id: 'signing', title: 'URL signing', both: ['prepareUpload', 'signDownload'],
+          note: 'Both versions build and sign the same S3 requests.' },
+        { id: 's3', title: 'S3 calls', both: ['putPublishedImage', 'deleteObject'],
+          note: 'Both staging reads use the same ETag and byte range. Compare S3Client with S3AsyncClient.' },
+        { id: 'permission', title: 'Permission check', both: ['requireRelation'],
+          note: 'MVC waits on get(). WebFlux checks the eventual result and signals either empty completion or an error.' },
+        { id: 'adapters', title: 'Client adapters', mvc: ['openFgaCall', 's3Call'], flux: ['openFgaCall', 'presign'],
+          note: 'fromFuture starts each async call on subscription. S3 setup and presigning use boundedElastic.' },
+        { id: 'metadata', title: 'Metadata validation', both: ['validateStagedUpload', 'storedVisibility'],
+          note: 'Both versions check owner, visibility, and declared size in the same helpers.' },
+        { id: 'decoding', title: 'Image decoding', mvc: ['validateImage', 'detectImageContentType'], flux: ['validateImageAsync', 'detectImageContentType'],
+          note: 'Both use the same synchronous decoder. WebFlux schedules it on a worker.' },
+      ] },
+      { label: '', items: [
+        { id: 'full', title: 'Full file', note: 'Every line of both ImageStorageService.kt files.' },
+      ] },
+    ];
+    const topics = new Map(groups.flatMap(group => group.items.map(topic => [topic.id, topic])));
+    const viewport = document.getElementById('code-viewport');
+    const diff = document.getElementById('diff');
+    const allLinesButton = document.getElementById('all-lines');
+    const changesButton = document.getElementById('changes');
+    const ignoreIndentation = document.getElementById('ignore-indentation');
+    const sideButtons = document.querySelectorAll('[data-side-option]');
+    const copyButtons = document.querySelectorAll('[data-copy]');
+    const narrowScreen = matchMedia('(max-width: 640px)');
+    const sourceLines = Object.fromEntries(sides.map(side => [side, sources[side].text.replace(/\r?\n$/, '').split(/\r?\n/)]));
+    const methodPattern = /^    (?:private )?fun (?:<[^>]+> )?(\w+)\(/;
+    const methodLocations = Object.fromEntries(sides.map(side => [side, sourceLines[side].flatMap((line, index) => {
+      const match = line.match(methodPattern);
+      return match ? [{ name: match[1], index }] : [];
+    })]));
+    const cache = new Map();
+    const expanded = new Set();
+    let current;
+    let currentTopic;
+    let compact = false;
+    let mobileSide = 'mvc';
+
+    function rangeFor(side, topic) {
+      const lines = sourceLines[side];
+      if (topic.id === 'full') return { start: 0, end: lines.length, lines };
+      const [first, last = first] = topic[side] ?? topic.both;
+      const methods = methodLocations[side];
+      const start = methods.find(method => method.name === first).index;
+      const lastIndex = methods.findIndex(method => method.name === last);
+      let end = methods[lastIndex + 1]?.index ?? lines.length;
+      while (end > start && lines[end - 1] === '') end--;
+      return { start, end, lines: lines.slice(start, end) };
+    }
+
+    function align(mvc, flux, ignoreLeadingWhitespace) {
+      const left = ignoreLeadingWhitespace ? mvc.lines.map(line => line.trimStart()) : mvc.lines;
+      const right = ignoreLeadingWhitespace ? flux.lines.map(line => line.trimStart()) : flux.lines;
+      // Prefer exact matches among equally long alignments, including closing braces at the same nesting level.
+      const matchBase = Math.min(left.length, right.length) + 1;
+      const matchScore = (l, r) => matchBase + Number(mvc.lines[l] === flux.lines[r]);
+      const longest = Array.from({ length: left.length + 1 }, () => new Uint32Array(right.length + 1));
+      for (let l = left.length - 1; l >= 0; l--) {
+        for (let r = right.length - 1; r >= 0; r--) {
+          const match = left[l] === right[r] ? longest[l + 1][r + 1] + matchScore(l, r) : 0;
+          longest[l][r] = Math.max(match, longest[l + 1][r], longest[l][r + 1]);
+        }
+      }
+
+      const rows = [];
+      const lineAt = (range, index) => ({ number: range.start + index + 1, text: range.lines[index] });
+      const isMatch = (l, r) => l < left.length && r < right.length && left[l] === right[r]
+        && longest[l][r] === longest[l + 1][r + 1] + matchScore(l, r);
+      let l = 0;
+      let r = 0;
+      while (l < left.length || r < right.length) {
+        if (isMatch(l, r)) {
+          rows.push({ mvc: lineAt(mvc, l++), flux: lineAt(flux, r++), changed: false });
+          continue;
+        }
+
+        const leftBlock = [];
+        const rightBlock = [];
+        while (l < left.length || r < right.length) {
+          if (isMatch(l, r)) break;
+          if (l < left.length && (r === right.length || longest[l + 1][r] >= longest[l][r + 1])) {
+            leftBlock.push(lineAt(mvc, l++));
+          } else {
+            rightBlock.push(lineAt(flux, r++));
+          }
+        }
+        for (let i = 0; i < Math.max(leftBlock.length, rightBlock.length); i++) {
+          rows.push({ mvc: leftBlock[i], flux: rightBlock[i], changed: true });
+        }
+      }
+      return rows;
+    }
+
+    const tokens = /\/\/.*|"(?:\\.|[^"\\])*"|\b(?:as|catch|class|companion|const|else|false|finally|fun|if|import|in|is|null|object|package|private|return|throw|true|try|val|var|when|while)\b|\b[A-Z][a-z][A-Za-z0-9_]*\b|\b\d[\d_]*L?\b/g;
+
+    function colorCode(line) {
+      const result = document.createDocumentFragment();
+      let last = 0;
+      for (const match of line.matchAll(tokens)) {
+        result.append(line.slice(last, match.index));
+        const token = match[0];
+        const span = document.createElement('span');
+        if (token.startsWith('//')) span.className = 'token-comment';
+        else if (token.startsWith('"')) span.className = 'token-string';
+        else if (/^\d/.test(token)) span.className = 'token-number';
+        else if (/^[A-Z]/.test(token)) span.className = 'token-type';
+        else span.className = 'token-keyword';
+        span.textContent = token;
+        result.append(span);
+        last = match.index + token.length;
+      }
+      result.append(line.slice(last));
+      return result;
+    }
+
+    function renderCell(side, row) {
+      const cell = document.createElement('div');
+      const line = row[side];
+      cell.className = `code-cell ${side}`;
+      if (!line) {
+        cell.classList.add('empty');
+        cell.setAttribute('aria-hidden', 'true');
+        return cell;
+      }
+      cell.dataset.line = line.number;
+      const gutter = document.createElement('span');
+      gutter.className = 'gutter';
+      gutter.textContent = line.number;
+      gutter.setAttribute('aria-hidden', 'true');
+      const mark = document.createElement('span');
+      mark.className = 'mark';
+      mark.setAttribute('aria-hidden', 'true');
+      if (row.changed) {
+        cell.classList.add(side === 'mvc' ? 'removed' : 'added');
+        mark.textContent = side === 'mvc' ? '−' : '+';
+      }
+      const code = document.createElement('code');
+      code.className = 'source-line';
+      code.append(colorCode(line.text));
+      cell.append(gutter, mark, code);
+      return cell;
+    }
+
+    function renderRow(fragment, row) {
+      const pair = document.createElement('div');
+      pair.className = 'pair';
+      pair.append(...sides.map(side => renderCell(side, row)));
+      fragment.append(pair);
+    }
+
+    function renderLines() {
+      const { rows } = current;
+      const fragment = document.createDocumentFragment();
+      const hasChanges = rows.some(row => row.changed);
+      let start = 0;
+      while (start < rows.length) {
+        if (!compact || !hasChanges || rows[start].changed) {
+          renderRow(fragment, rows[start++]);
+          continue;
+        }
+        let end = start + 1;
+        while (end < rows.length && !rows[end].changed) end++;
+        const hiddenStart = start === 0 ? start : Math.min(start + 2, end);
+        const hiddenEnd = end === rows.length ? end : Math.max(end - 2, hiddenStart);
+        if (hiddenEnd - hiddenStart < 2 || expanded.has(start)) {
+          for (let i = start; i < end; i++) renderRow(fragment, rows[i]);
+        } else {
+          for (let i = start; i < hiddenStart; i++) renderRow(fragment, rows[i]);
+          const gap = document.createElement('button');
+          gap.className = 'gap-button';
+          gap.type = 'button';
+          gap.textContent = `… Show ${hiddenEnd - hiddenStart} unchanged lines`;
+          const runStart = start;
+          gap.addEventListener('click', () => {
+            const offset = viewport.scrollTop;
+            expanded.add(runStart);
+            renderLines();
+            viewport.focus({ preventScroll: true });
+            viewport.scrollTop = offset;
+          });
+          fragment.append(gap);
+          for (let i = hiddenEnd; i < end; i++) renderRow(fragment, rows[i]);
+        }
+        start = end;
+      }
+      viewport.replaceChildren(fragment);
+    }
+
+    function chooseTopic() {
+      const id = location.hash.slice(1);
+      const topic = topics.get(id) ?? topics.get('complete');
+      currentTopic = topic.id;
+      const key = `${topic.id}:${ignoreIndentation.checked}`;
+      if (!cache.has(key)) {
+        const mvc = rangeFor('mvc', topic);
+        const flux = rangeFor('flux', topic);
+        const rows = align(mvc, flux, ignoreIndentation.checked);
+        const counts = sides.map(side => rows.filter(row => row.changed && row[side]).length);
+        cache.set(key, { mvc, flux, rows, counts });
+      }
+      current = cache.get(key);
+      document.getElementById('topic-title').textContent = topic.title;
+      document.getElementById('topic-note').textContent = topic.note;
+      document.getElementById('counts').textContent = current.counts.some(Boolean)
+        ? `−${current.counts[0]} MVC  /  +${current.counts[1]} WebFlux`
+        : 'No changed lines';
+
+      for (const link of document.querySelectorAll('.topic')) {
+        if (link.hash === `#${topic.id}`) link.setAttribute('aria-current', 'true');
+        else link.removeAttribute('aria-current');
+      }
+      for (const side of sides) {
+        const file = document.getElementById(`${side}-file`);
+        file.href = sources[side].path;
+        file.textContent = `${filename} · ${current[side].start + 1}–${current[side].end}`;
+      }
+      for (const button of copyButtons) button.textContent = 'Copy';
+      expanded.clear();
+      renderLines();
+      viewport.scrollTop = 0;
+    }
+
+    function setCompact(value) {
+      compact = value;
+      allLinesButton.setAttribute('aria-pressed', String(!compact));
+      changesButton.setAttribute('aria-pressed', String(compact));
+      expanded.clear();
+      renderLines();
+      viewport.scrollTop = 0;
+    }
+
+    function setVisibleSide() {
+      diff.dataset.side = narrowScreen.matches ? mobileSide : 'split';
+      viewport.setAttribute('aria-label', diff.dataset.side === 'split' ? 'Side-by-side Kotlin diff'
+        : diff.dataset.side === 'mvc' ? 'Spring MVC Kotlin diff' : 'Spring WebFlux Kotlin diff');
+      for (const button of sideButtons) {
+        button.setAttribute('aria-pressed', String(button.dataset.sideOption === diff.dataset.side));
+      }
+    }
+
+    async function copyCode(button) {
+      const version = button.dataset.copy;
+      const text = currentTopic === 'full' ? sources[version].text : current[version].lines.join('\n') + '\n';
+      const status = document.getElementById('copy-status');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Local files may not have access to the clipboard API.
+        const selection = document.createElement('textarea');
+        selection.value = text;
+        selection.setAttribute('readonly', '');
+        selection.style.position = 'fixed';
+        selection.style.opacity = '0';
+        document.body.append(selection);
+        selection.select();
+        const copied = document.execCommand('copy');
+        selection.remove();
+        button.focus({ preventScroll: true });
+        if (!copied) {
+          button.textContent = 'Copy failed';
+          status.textContent = 'Could not copy the code.';
+          return;
+        }
+      }
+      status.textContent = version === 'mvc' ? 'Copied Spring MVC code.' : 'Copied Spring WebFlux code.';
+      button.textContent = 'Copied';
+      setTimeout(() => {
+        if (button.textContent === 'Copied') button.textContent = 'Copy';
+      }, 1500);
+    }
+
+    for (const { label, items } of groups) {
+      const group = document.createElement('div');
+      if (label) {
+        const heading = document.createElement('h2');
+        heading.textContent = label;
+        group.append(heading);
+      } else {
+        group.className = 'full-topic';
+      }
+      const links = document.createElement('div');
+      links.className = 'topic-group';
+      for (const { id, title } of items) {
+        const link = document.createElement('a');
+        link.className = 'topic';
+        link.href = `#${id}`;
+        link.textContent = title;
+        links.append(link);
+      }
+      group.append(links);
+      document.getElementById('topics').append(group);
+    }
+
+    window.addEventListener('hashchange', chooseTopic);
+    allLinesButton.addEventListener('click', () => setCompact(false));
+    changesButton.addEventListener('click', () => setCompact(true));
+    ignoreIndentation.addEventListener('change', chooseTopic);
+    narrowScreen.addEventListener('change', setVisibleSide);
+    for (const button of sideButtons) button.addEventListener('click', () => {
+      mobileSide = button.dataset.sideOption;
+      setVisibleSide();
+    });
+    for (const button of copyButtons) button.addEventListener('click', () => copyCode(button));
+    setVisibleSide();
+    chooseTopic();
+  </script>
+</body>
+</html>

@@ -16,12 +16,15 @@ import dev.openfga.sdk.api.client.model.ClientTupleKeyWithoutCondition
 import dev.openfga.sdk.api.client.model.ClientWriteRequest
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.S3Exception
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -29,9 +32,11 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
 import java.io.ByteArrayInputStream
 import java.io.IOException
-import java.util.concurrent.ExecutionException
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import javax.imageio.ImageIO
+import javax.imageio.stream.MemoryCacheImageInputStream
 
 @Service
 class ImageStorageService(
@@ -44,77 +49,27 @@ class ImageStorageService(
         ownerId: String,
         request: CreateImageUploadRequest,
     ): CreateImageUploadResponse {
-        validateUploadRequest(request)
-
-        val imageId = UUID.randomUUID()
-        val key = stagingKey(imageId)
-        val metadata = mapOf(
-            OWNER_ID_METADATA to ownerId,
-            VISIBILITY_METADATA to request.visibility.name,
-            DECLARED_SIZE_METADATA to request.sizeBytes.toString(),
-        )
-        val putObjectRequest = PutObjectRequest.builder()
-            .bucket(s3Properties.bucket)
-            .key(key)
-            .contentType(request.contentType)
-            .metadata(metadata)
-            .build()
-        val presignedRequest = s3Presigner.presignPutObject(
-            PutObjectPresignRequest.builder()
-                .signatureDuration(s3Properties.uploadUrlLifetime)
-                .putObjectRequest(putObjectRequest)
-                .build(),
-        )
-
-        writeOwner(imageId, ownerId)
-
-        return CreateImageUploadResponse(
-            imageId = imageId,
-            uploadUrl = presignedRequest.url().toURI(),
-            requiredHeaders = presignedRequest.signedHeaders()
-                .filterKeys { it.lowercase() != "host" }
-                .mapValues { (_, values) -> values.joinToString(",") },
-            expiresAt = presignedRequest.expiration(),
-        )
+        val response = presign { prepareUpload(ownerId, request) }
+        writeOwner(response.imageId, ownerId)
+        return response
     }
 
     fun completeUpload(
         ownerId: String,
         imageId: UUID,
     ): CompleteImageUploadResponse {
-        requireRelation(ownerId, imageId, "can_complete")
-
         val key = stagingKey(imageId)
+        requireRelation(ownerId, imageId, "can_complete")
         val stagedHead = headObject(key)
-        val metadata = stagedHead.metadata()
-        if (metadata[OWNER_ID_METADATA] != ownerId) {
-            throw ImageApiException(HttpStatus.FORBIDDEN, "This upload belongs to another user.")
-        }
+        val visibility = validateStagedUpload(stagedHead, ownerId)
+        val size = stagedHead.contentLength()
 
-        val declaredSize = metadata[DECLARED_SIZE_METADATA]?.toLongOrNull()
-            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The upload metadata is invalid.")
-        val visibility = metadata[VISIBILITY_METADATA]?.let(::parseVisibility)
-            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The upload metadata is invalid.")
+        val stagedObject = getStagedObject(key, size, stagedHead.eTag())
+        val bytes = stagedObject.asByteArrayUnsafe()
+        val contentType = validateImage(bytes, size, stagedObject.response().contentType())
+        putPublishedImage(imageId, ownerId, visibility, contentType, bytes)
 
-        if (stagedHead.contentLength() != declaredSize || declaredSize !in 1..MAX_IMAGE_SIZE_BYTES) {
-            throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded image size does not match its declaration.")
-        }
-
-        val stagedObject = getObject(key)
-        val bytes = stagedObject.asByteArray()
-        if (bytes.isEmpty() || bytes.size.toLong() != declaredSize) {
-            throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded image size does not match its declaration.")
-        }
-
-        val actualContentType = detectImageContentType(bytes)
-            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded bytes are not a supported image.")
-        if (stagedObject.response().contentType() != actualContentType) {
-            throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded image content type does not match its bytes.")
-        }
-
-        putPublishedImage(imageId, ownerId, visibility, actualContentType, bytes)
-        deleteObject(stagingKey(imageId))
-
+        deleteObject(key)
         return CompleteImageUploadResponse(imageId, ImageStatus.AVAILABLE)
     }
 
@@ -123,30 +78,13 @@ class ImageStorageService(
         requesterId: String?,
     ): CreateImageDownloadResponse {
         val image = headObject(imageKey(imageId))
-        val visibility = image.metadata()[VISIBILITY_METADATA]?.let(::parseVisibility)
-            ?: throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, "The stored image metadata is invalid.")
-
-        if (visibility == ImageVisibility.PRIVATE) {
+        if (storedVisibility(image) == ImageVisibility.PRIVATE) {
             val userId = requesterId
                 ?: throw ImageApiException(HttpStatus.UNAUTHORIZED, "Sign-in is required to download this image.")
             requireRelation(userId, imageId, "can_download_private")
         }
 
-        val request = GetObjectRequest.builder()
-            .bucket(s3Properties.bucket)
-            .key(imageKey(imageId))
-            .build()
-        val presignedRequest = s3Presigner.presignGetObject(
-            GetObjectPresignRequest.builder()
-                .signatureDuration(s3Properties.downloadUrlLifetime)
-                .getObjectRequest(request)
-                .build(),
-        )
-
-        return CreateImageDownloadResponse(
-            downloadUrl = presignedRequest.url().toURI(),
-            expiresAt = presignedRequest.expiration(),
-        )
+        return presign { signDownload(imageId) }
     }
 
     fun deleteImage(
@@ -155,11 +93,7 @@ class ImageStorageService(
     ) {
         val image = headObject(imageKey(imageId))
         requireRelation(ownerId, imageId, "can_delete")
-        if (image.metadata()[OWNER_ID_METADATA] != ownerId) {
-            throw ImageApiException(HttpStatus.FORBIDDEN, "Only the uploader can delete this image.")
-        }
-        parseVisibility(image.metadata()[VISIBILITY_METADATA]
-            ?: throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, "The stored image metadata is invalid."))
+        validateDeletion(image, ownerId)
 
         deleteObject(imageKey(imageId))
         deleteObject(stagingKey(imageId))
@@ -191,6 +125,57 @@ class ImageStorageService(
         requireRelation(ownerId, imageId, "can_delete")
 
         deleteViewer(imageId, recipientUserId.toString())
+    }
+
+    private fun prepareUpload(ownerId: String, request: CreateImageUploadRequest): CreateImageUploadResponse {
+        validateUploadRequest(request)
+
+        val imageId = UUID.randomUUID()
+        val putObjectRequest = PutObjectRequest.builder()
+            .bucket(s3Properties.bucket)
+            .key(stagingKey(imageId))
+            .contentType(request.contentType)
+            .metadata(
+                mapOf(
+                    OWNER_ID_METADATA to ownerId,
+                    VISIBILITY_METADATA to request.visibility.name,
+                    DECLARED_SIZE_METADATA to request.sizeBytes.toString(),
+                ),
+            )
+            .build()
+        val presignedRequest = s3Presigner.presignPutObject(
+            PutObjectPresignRequest.builder()
+                .signatureDuration(s3Properties.uploadUrlLifetime)
+                .putObjectRequest(putObjectRequest)
+                .build(),
+        )
+
+        return CreateImageUploadResponse(
+            imageId = imageId,
+            uploadUrl = presignedRequest.url().toURI(),
+            requiredHeaders = presignedRequest.signedHeaders()
+                .filterKeys { !it.equals("host", ignoreCase = true) }
+                .mapValues { (_, values) -> values.joinToString(",") },
+            expiresAt = presignedRequest.expiration(),
+        )
+    }
+
+    private fun signDownload(imageId: UUID): CreateImageDownloadResponse {
+        val request = GetObjectRequest.builder()
+            .bucket(s3Properties.bucket)
+            .key(imageKey(imageId))
+            .build()
+        val presignedRequest = s3Presigner.presignGetObject(
+            GetObjectPresignRequest.builder()
+                .signatureDuration(s3Properties.downloadUrlLifetime)
+                .getObjectRequest(request)
+                .build(),
+        )
+
+        return CreateImageDownloadResponse(
+            downloadUrl = presignedRequest.url().toURI(),
+            expiresAt = presignedRequest.expiration(),
+        )
     }
 
     private fun validateUploadRequest(request: CreateImageUploadRequest) {
@@ -226,17 +211,20 @@ class ImageStorageService(
         }
     }
 
-    private fun getObject(key: String) =
+    private fun getStagedObject(key: String, size: Long, eTag: String?): ResponseBytes<GetObjectResponse> =
         s3Call {
             s3Client.getObjectAsBytes(
                 GetObjectRequest.builder()
                     .bucket(s3Properties.bucket)
                     .key(key)
+                    .ifMatch(eTag)
+                    // S3 ranges are inclusive. Read one extra byte to detect an oversized object.
+                    .range("bytes=0-$size")
                     .build(),
             )
         }
 
-    private fun headObject(key: String) =
+    private fun headObject(key: String): HeadObjectResponse =
         s3Call {
             s3Client.headObject(
                 HeadObjectRequest.builder()
@@ -264,7 +252,7 @@ class ImageStorageService(
             ._object(imageObject(imageId))
 
         openFgaCall {
-            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple))).get()
+            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))
         }
     }
 
@@ -275,7 +263,7 @@ class ImageStorageService(
             ._object(imageObject(imageId))
 
         openFgaCall {
-            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple))).get()
+            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))
         }
     }
 
@@ -286,7 +274,7 @@ class ImageStorageService(
             ._object(imageObject(imageId))
 
         openFgaCall {
-            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple))).get()
+            openFgaClient.write(ClientWriteRequest().writes(listOf(tuple)))
         }
     }
 
@@ -297,7 +285,7 @@ class ImageStorageService(
             ._object(imageObject(imageId))
 
         openFgaCall {
-            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple))).get()
+            openFgaClient.write(ClientWriteRequest().deletes(listOf(tuple)))
         }
     }
 
@@ -307,46 +295,91 @@ class ImageStorageService(
             .relation(relation)
             ._object(imageObject(imageId))
 
-        val allowed = openFgaCall { openFgaClient.check(request).get().allowed == true }
-        if (!allowed) {
+        val response = openFgaCall { openFgaClient.check(request) }
+        if (response.allowed != true) {
             throw ImageApiException(HttpStatus.FORBIDDEN, "You are not allowed to access this image.")
         }
     }
 
-    private fun <T> openFgaCall(operation: () -> T): T =
+    private fun <T : Any> openFgaCall(supplier: () -> CompletableFuture<T>): T =
         try {
-            operation()
-        } catch (exception: InterruptedException) {
+            supplier().get()
+        } catch (cause: InterruptedException) {
             Thread.currentThread().interrupt()
-            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request was interrupted.")
+            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request was interrupted.", cause)
         } catch (exception: ExecutionException) {
-            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request failed.")
-        } catch (exception: Exception) {
-            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request failed.")
+            val cause = exception.cause ?: exception
+            if (cause is Error) throw cause
+            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request failed.", cause)
+        } catch (cause: Exception) {
+            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "OpenFGA request failed.", cause)
         }
 
-    private fun <T> s3Call(operation: () -> T): T =
+    private fun <T : Any> s3Call(supplier: () -> T): T =
         try {
-            operation()
-        } catch (exception: S3Exception) {
-            if (exception.statusCode() == HttpStatus.NOT_FOUND.value()) {
-                throw ImageApiException(HttpStatus.NOT_FOUND, "Image not found.")
+            supplier()
+        } catch (cause: SdkException) {
+            throw when ((cause as? S3Exception)?.statusCode()) {
+                404 -> ImageApiException(HttpStatus.NOT_FOUND, "Image not found.", cause)
+                412 -> ImageApiException(HttpStatus.CONFLICT, "The staged upload changed during completion.", cause)
+                else -> ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "S3 request failed.", cause)
             }
-            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "S3 request failed.")
-        } catch (exception: SdkException) {
-            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "S3 request failed.")
         }
 
-    private fun parseVisibility(value: String): ImageVisibility =
+    private fun <T : Any> presign(supplier: () -> T): T =
         try {
-            ImageVisibility.valueOf(value)
-        } catch (exception: IllegalArgumentException) {
-            throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, "The stored image metadata is invalid.")
+            supplier()
+        } catch (cause: SdkException) {
+            throw ImageApiException(HttpStatus.SERVICE_UNAVAILABLE, "S3 URL signing failed.", cause)
         }
+
+    private fun validateStagedUpload(image: HeadObjectResponse, ownerId: String): ImageVisibility {
+        val metadata = image.metadata()
+        if (metadata[OWNER_ID_METADATA] != ownerId) {
+            throw ImageApiException(HttpStatus.FORBIDDEN, "This upload belongs to another user.")
+        }
+
+        val declaredSize = metadata[DECLARED_SIZE_METADATA]?.toLongOrNull()
+            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The upload metadata is invalid.")
+        val visibility = imageVisibility(metadata[VISIBILITY_METADATA])
+            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The upload metadata is invalid.")
+
+        if (declaredSize !in 1..MAX_IMAGE_SIZE_BYTES || image.contentLength() != declaredSize) {
+            throw sizeMismatch()
+        }
+        return visibility
+    }
+
+    private fun validateDeletion(image: HeadObjectResponse, ownerId: String) {
+        if (image.metadata()[OWNER_ID_METADATA] != ownerId) {
+            throw ImageApiException(HttpStatus.FORBIDDEN, "Only the uploader can delete this image.")
+        }
+        storedVisibility(image)
+    }
+
+    private fun storedVisibility(image: HeadObjectResponse): ImageVisibility =
+        imageVisibility(image.metadata()[VISIBILITY_METADATA])
+            ?: throw ImageApiException(HttpStatus.INTERNAL_SERVER_ERROR, "The stored image metadata is invalid.")
+
+    private fun imageVisibility(value: String?): ImageVisibility? =
+        ImageVisibility.entries.firstOrNull { it.name == value }
+
+    private fun sizeMismatch(): ImageApiException =
+        ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded image size does not match its declaration.")
+
+    private fun validateImage(bytes: ByteArray, size: Long, contentType: String?): String {
+        if (bytes.size.toLong() != size) throw sizeMismatch()
+
+        val detectedContentType = detectImageContentType(bytes)
+            ?: throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded bytes are not a supported image.")
+        if (contentType != detectedContentType) {
+            throw ImageApiException(HttpStatus.BAD_REQUEST, "The uploaded image content type does not match its bytes.")
+        }
+        return detectedContentType
+    }
 
     private fun detectImageContentType(bytes: ByteArray): String? {
-        val imageInput = ImageIO.createImageInputStream(ByteArrayInputStream(bytes)) ?: return null
-        imageInput.use { input ->
+        MemoryCacheImageInputStream(ByteArrayInputStream(bytes)).use { input ->
             val readers = ImageIO.getImageReaders(input)
             if (!readers.hasNext()) return null
 

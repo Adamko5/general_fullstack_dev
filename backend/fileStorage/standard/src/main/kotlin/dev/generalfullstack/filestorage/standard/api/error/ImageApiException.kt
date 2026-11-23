@@ -5,4 +5,5 @@ import org.springframework.http.HttpStatus
 class ImageApiException(
     val status: HttpStatus,
     message: String,
-) : RuntimeException(message)
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)

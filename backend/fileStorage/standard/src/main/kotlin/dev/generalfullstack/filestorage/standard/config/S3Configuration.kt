@@ -9,6 +9,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.S3Configuration as AwsS3Configuration
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import java.time.Duration
 
 @Configuration
 @EnableConfigurationProperties(S3Properties::class)
@@ -20,6 +21,10 @@ class S3Configuration {
             .region(Region.of(properties.region))
             .credentialsProvider(properties.credentialsProvider())
             .serviceConfiguration(s3ServiceConfiguration())
+            .overrideConfiguration { config ->
+                config.apiCallAttemptTimeout(Duration.ofSeconds(10))
+                    .apiCallTimeout(Duration.ofSeconds(30))
+            }
             .build()
 
     @Bean(destroyMethod = "close")
